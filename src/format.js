@@ -52,7 +52,33 @@ const monthLabel = ym =>
   ym ? new Date(`${ym}-01T00:00:00Z`).toLocaleDateString('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : '';
 const weekday = iso => new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-IN', { weekday: 'short', timeZone: 'UTC' });
 
+// Amount in words, Indian numbering (thousand, lakh, crore):
+// 1051344.6 → "Rupees Ten Lakh Fifty-One Thousand Three Hundred Forty-Four and Sixty Paise Only".
+const ONES = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve',
+  'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
+const TENS = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
+const belowHundred = n => (n < 20 ? ONES[n] : TENS[Math.floor(n / 10)] + (n % 10 ? `-${ONES[n % 10]}` : ''));
+const belowThousand = n => [n >= 100 ? `${ONES[Math.floor(n / 100)]} Hundred` : '', belowHundred(n % 100)].filter(Boolean).join(' ');
+function integerWords(n) {
+  if (n === 0) return 'Zero';
+  const crore = Math.floor(n / 1e7);
+  const rest = n % 1e7;
+  const parts = [
+    crore ? `${integerWords(crore)} Crore` : '',
+    Math.floor(rest / 1e5) ? `${belowHundred(Math.floor(rest / 1e5))} Lakh` : '',
+    Math.floor((rest % 1e5) / 1000) ? `${belowHundred(Math.floor((rest % 1e5) / 1000))} Thousand` : '',
+    belowThousand(rest % 1000),
+  ];
+  return parts.filter(Boolean).join(' ');
+}
+function amountInWords(value) {
+  const paiseTotal = Math.round(Math.abs(Number(value) || 0) * 100);
+  const rupees = Math.floor(paiseTotal / 100);
+  const paise = paiseTotal % 100;
+  return `Rupees ${integerWords(rupees)}${paise ? ` and ${belowHundred(paise)} Paise` : ''} Only`;
+}
+
 module.exports = {
   money, amount, round2, qty, today, currentMonth, isMonth, isDate, daysInMonth, monthStart, monthEnd,
-  addDays, addMonths, daysBetween, weekdaysBetween, fmtDate, monthLabel, weekday,
+  addDays, addMonths, daysBetween, weekdaysBetween, fmtDate, monthLabel, weekday, amountInWords,
 };

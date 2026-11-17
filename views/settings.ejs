@@ -24,7 +24,8 @@
     <div class="form-grid">
       <div><label for="invoice_prefix">Invoice number prefix <span class="hint">(e.g. INV- → INV-202610-001)</span></label><input id="invoice_prefix" name="invoice_prefix" value="<%= s.invoice_prefix %>"></div>
       <div><label for="tax_label">Tax label</label><input id="tax_label" name="tax_label" value="<%= s.tax_label %>"></div>
-      <div><label for="default_tax_rate">Default tax rate (%)</label><input id="default_tax_rate" type="number" step="0.01" min="0" max="100" name="default_tax_rate" value="<%= s.default_tax_rate %>"></div>
+      <div><label for="cgst_rate">CGST (%) <span class="hint">(for new invoices)</span></label><input id="cgst_rate" type="number" step="0.01" min="0" max="100" name="cgst_rate" value="<%= s.cgst_rate %>"></div>
+      <div><label for="sgst_rate">SGST (%) <span class="hint">(for new invoices)</span></label><input id="sgst_rate" type="number" step="0.01" min="0" max="100" name="sgst_rate" value="<%= s.sgst_rate %>"></div>
       <div><label for="payment_terms_days">Payment terms (days)</label><input id="payment_terms_days" type="number" step="1" min="0" name="payment_terms_days" value="<%= s.payment_terms_days %>"></div>
       <div class="full"><label for="bank_details">Bank / payment details <span class="hint">(printed on invoices)</span></label><textarea id="bank_details" name="bank_details"><%= s.bank_details %></textarea></div>
     </div>

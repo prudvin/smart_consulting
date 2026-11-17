@@ -31,8 +31,6 @@
           <td class="cell-badge"><span class="badge <%= c.status %>"><%= c.status %></span></td>
           <td class="actions cell-actions">
             <a class="btn small secondary" href="/invoices?customer_id=<%= c.id %>">Invoices</a>
-            <a class="btn small secondary" href="/customers/<%= c.id %>/edit">Edit</a>
-            <%- include('../partials/delete-button', { action: `/customers/${c.id}/delete`, confirmText: `Delete ${c.name}? Their assignments will also be deleted.` }) %>
           </td>
         </tr>
       <% } %>

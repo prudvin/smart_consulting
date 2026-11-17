@@ -3,7 +3,7 @@ const { db, tx, getSettings } = require('../db');
 const f = require('../format');
 const { INVOICE_STATUSES } = require('../constants');
 const { flash } = require('../middleware');
-const { createInvoice, replaceLines, rebuildInvoice, generateForMonth } = require('../services/invoices');
+const { createInvoice, replaceLines, rebuildInvoice, generateForMonth, annexurePayroll } = require('../services/invoices');
 
 const router = express.Router();
 
@@ -87,6 +87,7 @@ router.get('/:id', (req, res, next) => {
   const annexure = getAnnexure(inv.id);
   res.render('invoices/show', {
     title: `Invoice ${inv.number}`, inv, lines, annexure, settings: getSettings(), INVOICE_STATUSES,
+    payroll: annexurePayroll(inv.month, annexure.map(r => r.employee_id)),
     annexureTotal: f.round2(annexure.reduce((s, r) => s + r.amount, 0)),
   });
 });
@@ -99,10 +100,21 @@ const csvCell = v => {
 router.get('/:id/annexure.csv', (req, res, next) => {
   const inv = getInvoice(req.params.id);
   if (!inv) return next();
-  const header = ['Code', 'Employee', 'Designation', 'Role', 'From', 'To', 'Attendance source', 'Days worked', 'Leave days', 'Holidays and week offs', 'Billable hours', 'Billing basis', 'Quantity', 'Unit', 'Rate', 'Rate source', 'Amount'];
-  const rows = getAnnexure(inv.id).map(r => [r.employee_code, r.employee_name, r.designation, r.role, r.period_from, r.period_to,
-    r.attendance_source, r.days_worked, r.paid_leave, r.attendance_source === 'Daily' ? r.holidays + r.week_off : '', r.hours,
-    r.billing_type, r.quantity, r.unit, r.rate, r.rate_source, r.amount]);
+  const annexure = getAnnexure(inv.id);
+  const payroll = annexurePayroll(inv.month, annexure.map(r => r.employee_id));
+  const kindLabel = { Earning: 'Earning', Deduction: 'Deduction', Employer: 'Employer contribution' };
+  const header = ['Code', 'Employee', 'Designation', 'Role',
+    ...payroll.columns.map(c => `${c.name} (${kindLabel[c.kind]})`), 'Gross', 'Total deductions', 'Net pay', 'Employer contributions', 'Amount'];
+  const seen = new Set();
+  const rows = annexure.map(r => {
+    // An employee with more than one assignment on the invoice has one payslip: show it on the first row only.
+    const slip = !seen.has(r.employee_id) && payroll.slips.get(r.employee_id);
+    seen.add(r.employee_id);
+    const pay = slip
+      ? [...payroll.columns.map(c => slip.amounts[c.key] ?? 0), slip.gross_earnings, slip.total_deductions, slip.net_pay, slip.employer_contributions]
+      : Array(payroll.columns.length + 4).fill('');
+    return [r.employee_code, r.employee_name, r.designation, r.role, ...pay, r.amount];
+  });
   res.type('text/csv').attachment(`${inv.number.replace(/[^\w.-]+/g, '_')}-annexure.csv`);
   res.send([header, ...rows].map(r => r.map(csvCell).join(',')).join('\r\n'));
 });
@@ -142,14 +154,14 @@ router.post('/:id', (req, res, next) => {
     .map(l => ({
       description: String(l.description || '').trim(),
       quantity: Number(l.quantity) || 0,
-      unit: String(l.unit || '').trim(),
-      rate: Number(l.rate) || 0,
+      amount: Number(l.amount) || 0,
     }))
     .filter(l => l.description);
   const fields = {
     invoice_date: String(req.body.invoice_date || ''),
     due_date: String(req.body.due_date || ''),
-    tax_rate: Number(req.body.tax_rate) || 0,
+    cgst_rate: Number(req.body.cgst_rate) || 0,
+    sgst_rate: Number(req.body.sgst_rate) || 0,
     notes: String(req.body.notes || '').trim(),
   };
 
@@ -157,12 +169,13 @@ router.post('/:id', (req, res, next) => {
   if (!f.isDate(fields.invoice_date)) error = 'Invoice date is required.';
   else if (fields.due_date && !f.isDate(fields.due_date)) error = 'Due date is invalid.';
   else if (fields.due_date && fields.due_date < fields.invoice_date) error = 'Due date cannot be before the invoice date.';
-  else if (fields.tax_rate < 0 || fields.tax_rate > 100) error = 'Tax rate must be between 0 and 100.';
+  else if (fields.cgst_rate < 0 || fields.cgst_rate > 100) error = 'CGST must be between 0 and 100.';
+  else if (fields.sgst_rate < 0 || fields.sgst_rate > 100) error = 'SGST must be between 0 and 100.';
   if (error) return res.status(400).render('invoices/edit', { title: `Edit invoice ${inv.number}`, inv: { ...inv, ...fields }, lines, error });
 
   tx(() => {
-    db.prepare('UPDATE invoices SET invoice_date = ?, due_date = ?, tax_rate = ?, notes = ? WHERE id = ?')
-      .run(fields.invoice_date, fields.due_date || null, fields.tax_rate, fields.notes || null, inv.id);
+    db.prepare('UPDATE invoices SET invoice_date = ?, due_date = ?, cgst_rate = ?, sgst_rate = ?, notes = ? WHERE id = ?')
+      .run(fields.invoice_date, fields.due_date || null, fields.cgst_rate, fields.sgst_rate, fields.notes || null, inv.id);
     replaceLines(inv.id, lines);
   });
   flash(req, 'success', 'Invoice saved.');

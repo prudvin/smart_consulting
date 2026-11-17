@@ -9,6 +9,7 @@
 </div>
 <div class="drawer-actions">
   <a class="btn" href="/customers/<%= c.id %>/edit" data-panel-load="/customers/<%= c.id %>/edit?panel=1">Edit</a>
+  <%- include('../partials/delete-button', { action: `/customers/${c.id}/delete`, confirmText: `Delete ${c.name}? Their assignments will also be deleted.` }) %>
 </div>
 <div class="drawer-body">
   <% if (locals.savedMsg) { %><div class="flash success"><%= savedMsg %></div><% } %>

@@ -6,10 +6,8 @@
 <% function lineRow(i, l) { %>
   <tr data-line>
     <td><input name="lines[<%= i %>][description]" value="<%= l.description || '' %>" placeholder="Description"></td>
-    <td><input type="number" name="lines[<%= i %>][quantity]" value="<%= l.quantity ?? 1 %>" step="0.01" min="0" data-qty></td>
-    <td><input name="lines[<%= i %>][unit]" value="<%= l.unit || '' %>" placeholder="month"></td>
-    <td><input type="number" name="lines[<%= i %>][rate]" value="<%= l.rate ?? 0 %>" step="0.01" min="0" data-rate></td>
-    <td class="num" data-amount><%= f.amount((l.quantity || 0) * (l.rate || 0)) %></td>
+    <td><input type="number" name="lines[<%= i %>][quantity]" value="<%= l.quantity ?? 1 %>" step="1" min="0" aria-label="Resources"></td>
+    <td><input type="number" name="lines[<%= i %>][amount]" value="<%= l.amount ?? 0 %>" step="0.01" min="0" data-line-amount aria-label="Amount"></td>
     <td class="actions"><button type="button" class="btn small secondary" data-remove-row>Remove</button></td>
   </tr>
 <% } %>
@@ -21,22 +19,25 @@
     <div class="form-grid">
       <div><label for="invoice_date">Invoice date</label><input id="invoice_date" type="date" name="invoice_date" value="<%= inv.invoice_date %>" required></div>
       <div><label for="due_date">Due date</label><input id="due_date" type="date" name="due_date" value="<%= inv.due_date || '' %>"></div>
-      <div><label for="tax_rate">Tax rate (%)</label><input id="tax_rate" type="number" name="tax_rate" value="<%= inv.tax_rate %>" step="0.01" min="0" max="100"></div>
+      <div><label for="cgst_rate">CGST (%)</label><input id="cgst_rate" type="number" name="cgst_rate" value="<%= inv.cgst_rate %>" step="0.01" min="0" max="100"></div>
+      <div><label for="sgst_rate">SGST (%)</label><input id="sgst_rate" type="number" name="sgst_rate" value="<%= inv.sgst_rate %>" step="0.01" min="0" max="100"></div>
     </div>
 
     <h2>Line items</h2>
     <div class="table-wrap">
-      <table data-invoice-lines>
-        <thead><tr><th>Description</th><th style="width: 110px">Qty</th><th style="width: 110px">Unit</th><th style="width: 140px">Rate (₹)</th><th class="num" style="width: 130px">Amount</th><th></th></tr></thead>
+      <table data-invoice-lines data-agency-type="<%= inv.agency_charge_type %>" data-agency-value="<%= inv.agency_charge_value %>">
+        <thead><tr><th>Description</th><th style="width: 110px">Qty <span class="hint">(resources)</span></th><th style="width: 160px">Amount (₹)</th><th></th></tr></thead>
         <tbody id="lines"><% lines.forEach((l, i) => lineRow(i, l)); %></tbody>
         <tfoot>
-          <tr><td colspan="4" class="num">Subtotal</td><td class="num" data-subtotal></td><td></td></tr>
-          <tr><td colspan="4" class="num">Tax</td><td class="num" data-tax></td><td></td></tr>
-          <tr><td colspan="4" class="num">Total</td><td class="num" data-total></td><td></td></tr>
+          <tr><td colspan="2" class="num">Subtotal</td><td class="num" data-subtotal></td><td></td></tr>
+          <% if (inv.agency_charge_type !== 'None') { %><tr><td colspan="2" class="num">Agency charges</td><td class="num" data-agency></td><td></td></tr><% } %>
+          <tr><td colspan="2" class="num">CGST</td><td class="num" data-cgst></td><td></td></tr>
+          <tr><td colspan="2" class="num">SGST</td><td class="num" data-sgst></td><td></td></tr>
+          <tr><td colspan="2" class="num">Total</td><td class="num" data-total></td><td></td></tr>
         </tfoot>
       </table>
     </div>
-    <template id="line-tpl"><% lineRow('__i__', { quantity: 1, rate: 0 }); %></template>
+    <template id="line-tpl"><% lineRow('__i__', { quantity: 1, amount: 0 }); %></template>
     <button type="button" class="btn small secondary" data-add-row="lines" data-template="line-tpl">+ Add line</button>
 
     <div style="margin-top: 16px"><label for="notes">Notes <span class="hint">(shown on the invoice)</span></label><textarea id="notes" name="notes"><%= inv.notes || '' %></textarea></div>

@@ -124,7 +124,7 @@ To exempt an employee, tick **Exempt from professional tax** on their record, e.
 the schedule's exemptions. Slabs are defined in `src/constants.js` (`TELANGANA_PT_SLABS`), so update them there if the
 schedule changes.
 
-**Employee pay.** Lists every employee, including inactive ones and anyone without a pay profile yet, with the
+**Employee salary.** Lists every employee, including inactive ones and anyone without a pay profile yet, with the
 customers they're currently assigned to (or "On bench"), their current pay profile, monthly gross and the date it
 took effect. The search box filters as you type, by name, code, designation, customer or pay profile, and the
 Designation, Customer (including "On bench") and Pay profile dropdowns narrow the list further; **Clear** resets them.
@@ -140,7 +140,7 @@ effective on or before the month end. An employee's full pay history is on their
 - Percentage deductions are calculated on the prorated earnings. Fixed deductions, such as professional tax, apply in full.
 
 **Regenerate**, on the payroll list or a run, or generating a month that already has payroll, clears the existing run
-and all its payslips, then generates the month again as a new draft from the current pay profiles, employee pay and
+and all its payslips, then generates the month again as a new draft from the current pay profiles, employee salaries and
 attendance. You're asked to confirm first. Finalizing protects a run: only an admin can regenerate or reopen a finalized month.
 
 **Payroll needs finalized attendance.** An employee assigned to a customer in the month gets a payslip only once that
@@ -153,15 +153,24 @@ with column totals. "—" marks a component that isn't in that employee's pay pr
 and a CSV export with the same component columns, plus bank details for salary upload.
 
 **Invoices.** **Generate invoices** creates one draft per active customer that had assignments in the month.
-Customers already invoiced for that month are skipped. Invoice lines are grouped by designation, for example
-"Senior Consultant — 2 resources, 2 months × ₹3,50,000". Designations without a rate are billed at ₹0 and flagged.
+Customers already invoiced for that month are skipped. There is one invoice line per designation: the quantity is the
+number of resources and the amount is what they are billed for the month (monthly, daily or hourly, prorated as
+applicable), e.g. "Senior Consultant · Qty 2 · ₹7,00,000". Lines have no rate column. Designations without a rate on
+the assignment are billed at ₹0 and flagged.
 
 Each generated invoice carries an **annexure**, printed as a separate page after the invoice and also available as a CSV.
-For each employee it shows the designation, project role, period billed, attendance (present, half day, paid and unpaid
-leave, absent, holidays and week offs), billable hours, quantity, rate, where the rate came from, and the amount.
-Subtotals per designation match the invoice lines.
+For each employee it shows the designation, project role, the payroll components from their payslip for the invoice month
+(earnings and gross, deductions and their total, net pay, and employer contributions), and the billed amount.
+Subtotals per designation match the invoice lines. Below the table, a statutory summary gives the totals of Employee PF,
+Employer PF, ESI and PT (with the number of employees for each). They are
+recognised by component name (e.g. "PF Employee Contribution", "PF Employer Contribution", "ESI", "PT"): a PF component
+is the employer's share when its name says "Employer" (or it is an employer contribution), otherwise the employee's.
+ESI is split into employee and employer shares when the component names say so.
+The payroll figures are read from the month's payroll run when the annexure is shown, so run payroll for the month first;
+they can change until that payroll is finalized.
 
-You can also create an invoice manually. Drafts are editable: line items, dates, tax rate and notes. **Rebuild**
+You can also create an invoice manually. Drafts are editable: line items, dates, CGST and SGST rates, and notes.
+GST is charged as two components, CGST and SGST (9% each by default, set under Settings), on the manpower lines plus agency charges. **Rebuild**
 regenerates a draft's lines and annexure from current assignments, rates and attendance. The status moves through
 Draft → Sent → Paid (or Cancelled). Invoices print or save as PDF from the browser. Numbers follow
 `<prefix><YYYYMM>-<seq>`, e.g. `INV-202610-001`.
@@ -200,7 +209,7 @@ test/                  node:test tests
 
 ## Notes and limitations
 
-- Tax is a single rate per invoice (e.g. 18% GST). It does not split CGST/SGST/IGST.
+- GST is split into CGST and SGST only. IGST (inter-state supply) is not supported.
 - Payroll does not calculate income tax (TDS), ESI or PF wage ceilings. Model them as fixed or percentage
   deduction components on a pay profile.
 - Sign-in has no rate limiting. If the app is exposed to the internet, put it behind HTTPS

@@ -136,8 +136,9 @@ test('invoices bill at the rate on each assignment, grouped by designation, with
   const lines = linesFromResources(resources);
   const consultant = lines.find(l => l.description.startsWith('Consultant'));
   assert.equal(lines.length, 4);
-  assert.equal(consultant.description, 'Consultant — 2 resources');
-  assert.equal(consultant.quantity, 1.48);
+  assert.equal(consultant.description, 'Consultant');
+  assert.equal(consultant.quantity, 2); // number of resources
+  assert.equal(consultant.amount, 1.48 * 310000); // half a month for Asha + a full month for Ravi
 
   const first = generateForMonth('2026-10');
   assert.equal(first.created.length, 1);
@@ -323,7 +324,7 @@ test('designation and rate are taken from the assignment: invoice line and paysl
   const [row] = buildResources(cust, '2026-04');
   assert.equal(row.designation, 'Solution Architect'); // not the employee's old "Developer"
   assert.equal(row.rate, 500000);
-  assert.equal(linesFromResources([row])[0].description, 'Solution Architect — 1 resource');
+  assert.equal(linesFromResources([row])[0].description, 'Solution Architect');
 
   db.prepare("INSERT INTO attendance_finalized (customer_id, month) VALUES (?, '2026-04')").run(cust);
   const run = generatePayroll('2026-04', null);

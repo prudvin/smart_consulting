@@ -429,25 +429,96 @@ document.addEventListener('change', e => {
   if (form && e.target.matches('select')) form.requestSubmit();
 });
 
-// Invoice editor: live line amounts and totals.
+// Invoice editor: live totals from the line amounts.
 const fmt = n => n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 function recalcInvoice() {
   const table = document.querySelector('[data-invoice-lines]');
   if (!table) return;
   let subtotal = 0;
   table.querySelectorAll('tr[data-line]').forEach(tr => {
-    const q = parseFloat(tr.querySelector('[data-qty]').value) || 0;
-    const r = parseFloat(tr.querySelector('[data-rate]').value) || 0;
-    const amt = Math.round(q * r * 100) / 100;
-    subtotal += amt;
-    tr.querySelector('[data-amount]').textContent = fmt(amt);
+    subtotal += Math.round((parseFloat(tr.querySelector('[data-line-amount]').value) || 0) * 100) / 100;
   });
-  const taxRate = parseFloat(document.querySelector('[name="tax_rate"]').value) || 0;
-  const tax = Math.round(subtotal * taxRate) / 100;
+  subtotal = Math.round(subtotal * 100) / 100;
+  const r2 = n => Math.round(n * 100) / 100;
+  const rate = name => parseFloat(document.querySelector(`[name="${name}"]`).value) || 0;
+  const agencyValue = parseFloat(table.dataset.agencyValue) || 0;
+  const agency = subtotal <= 0 ? 0
+    : table.dataset.agencyType === 'Percent' ? r2(subtotal * agencyValue / 100)
+      : table.dataset.agencyType === 'Fixed' ? r2(agencyValue) : 0;
+  const taxable = r2(subtotal + agency);
+  const cgst = r2(taxable * rate('cgst_rate') / 100);
+  const sgst = r2(taxable * rate('sgst_rate') / 100);
   document.querySelector('[data-subtotal]').textContent = fmt(subtotal);
-  document.querySelector('[data-tax]').textContent = fmt(tax);
-  document.querySelector('[data-total]').textContent = fmt(subtotal + tax);
+  const agencyCell = document.querySelector('[data-agency]');
+  if (agencyCell) agencyCell.textContent = fmt(agency);
+  document.querySelector('[data-cgst]').textContent = fmt(cgst);
+  document.querySelector('[data-sgst]').textContent = fmt(sgst);
+  document.querySelector('[data-total]').textContent = fmt(taxable + cgst + sgst);
 }
 document.addEventListener('input', recalcInvoice);
 document.addEventListener('click', () => setTimeout(recalcInvoice));
 document.addEventListener('DOMContentLoaded', recalcInvoice);
+
+// Phone layout for tables: every table in a .table-wrap or .doc-scroll (except .stack-table, which has its own layout,
+// and .no-stack) gets the .stack-auto class, and each body and footer cell a data-label from its column header(s),
+// so the CSS can show each row as a card of "Label  value" pairs. Multi-row headers with colspan/rowspan are
+// supported: a column's label joins the header texts above it (e.g. "Earnings (₹) · Basic").
+function columnLabels(table) {
+  const grid = [];
+  (table.tHead ? [...table.tHead.rows] : []).forEach((tr, r) => {
+    grid[r] = grid[r] || [];
+    let c = 0;
+    for (const th of tr.cells) {
+      while (grid[r][c] !== undefined) c++;
+      const text = th.textContent.replace(/\s+/g, ' ').trim();
+      for (let dr = 0; dr < th.rowSpan; dr++) {
+        grid[r + dr] = grid[r + dr] || [];
+        for (let dc = 0; dc < th.colSpan; dc++) grid[r + dr][c + dc] = text;
+      }
+      c += th.colSpan;
+    }
+  });
+  const width = Math.max(0, ...grid.map(row => row.length));
+  return Array.from({ length: width }, (_, c) => [...new Set(grid.map(row => row[c]).filter(Boolean))].join(' · '));
+}
+function labelTable(table) {
+  if (table.matches('.stack-table, .no-stack') || !table.closest('.table-wrap, .doc-scroll')) return;
+  const labels = columnLabels(table);
+  if (!labels.length) return;
+  table.classList.add('stack-auto');
+  for (const section of [...table.tBodies, table.tFoot].filter(Boolean)) {
+    for (const tr of section.rows) {
+      let c = 0;
+      for (const td of tr.cells) {
+        // A cell spanning several columns (a group heading, a note, a "Total" caption) gets no label.
+        if (td.colSpan === 1 && labels[c] && !td.hasAttribute('data-label')) td.dataset.label = labels[c];
+        c += td.colSpan;
+      }
+    }
+  }
+}
+// Cards on phones, and at any width when the table is wider than its container, so tables never scroll sideways.
+const phone = window.matchMedia('(max-width: 820px)');
+function layoutTable(table) {
+  const wrap = table.closest('.table-wrap, .doc-scroll');
+  if (phone.matches) return table.classList.add('cards');
+  table.classList.remove('cards');
+  if (!wrap.clientWidth) return; // hidden (e.g. a closed panel): measured again when shown
+  if (table.offsetWidth > wrap.clientWidth + 1) table.classList.add('cards');
+}
+function layoutTables() {
+  document.querySelectorAll('table').forEach(labelTable);
+  document.querySelectorAll('table.stack-auto').forEach(layoutTable);
+}
+document.addEventListener('DOMContentLoaded', () => {
+  layoutTables();
+  // Tables added or changed later: panel and popup content, added invoice lines, pay components; and resizing.
+  let queued = false;
+  const queue = () => {
+    if (queued) return;
+    queued = true;
+    requestAnimationFrame(() => { queued = false; layoutTables(); });
+  };
+  new MutationObserver(queue).observe(document.body, { childList: true, subtree: true });
+  window.addEventListener('resize', queue);
+});

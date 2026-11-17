@@ -25,7 +25,7 @@ function validate(p) {
 
 const renderForm = (res, p, isNew, error) =>
   res.status(error ? 400 : 200).render('employee-pay/form', {
-    title: isNew ? 'Assign pay profile' : 'Edit employee pay', p, isNew, error,
+    title: isNew ? 'Assign pay profile' : 'Edit employee salary', p, isNew, error,
     employees: db.prepare("SELECT id, code, name FROM employees WHERE status = 'Active' OR id = ? ORDER BY name").all(p.employee_id || 0),
     profiles: db.prepare('SELECT id, name FROM pay_profiles ORDER BY name').all(),
   });
@@ -53,7 +53,7 @@ router.get('/', (req, res) => {
     ORDER BY e.status = 'Inactive', e.code`).all({ today });
   const distinct = values => [...new Set(values.filter(Boolean))].sort((a, b) => a.localeCompare(b));
   res.render('employee-pay/list', {
-    title: 'Employee pay', employees,
+    title: 'Employee salary', employees,
     profiles: db.prepare('SELECT id, name FROM pay_profiles ORDER BY name').all(),
     defaultEffective: f.monthStart(f.currentMonth()),
     filterOptions: {
@@ -125,7 +125,7 @@ router.post('/:id', (req, res, next) => {
     try {
       db.prepare('UPDATE employee_pay SET employee_id = ?, profile_id = ?, monthly_gross = ?, effective_from = ? WHERE id = ?')
         .run(p.employee_id, p.profile_id, p.monthly_gross, p.effective_from, id);
-      flash(req, 'success', 'Employee pay updated.');
+      flash(req, 'success', 'Employee salary updated.');
       return res.redirect('/employee-pay');
     } catch (err) {
       if (!isUniqueError(err)) throw err;

@@ -253,6 +253,11 @@ dialog.doc-popup::backdrop { background: rgba(31, 26, 16, .55); }
 .doc .totals { margin-left: auto; width: 320px; margin-top: 12px; }
 .doc .totals td { border: none; padding: 4px 10px; }
 .doc .totals tr.grand td { font-size: 16px; font-weight: 700; border-top: 2px solid var(--text); }
+.doc .totals td:first-child { white-space: nowrap; }
+.doc .totals tr.in-words td { padding-top: 8px; font-size: 13px; font-weight: 600; text-align: right; white-space: normal; }
+.doc .signature { width: 240px; margin: 36px 0 0 auto; text-align: center; break-inside: avoid; }
+.doc .signature-space { height: 70px; }
+.doc .signature-line { border-top: 1px solid var(--text); padding-top: 6px; font-size: 13px; }
 .pre { white-space: pre-line; }
 .net-pay { margin-top: 16px; padding: 12px 16px; background: #f7efd9; border-radius: 6px; font-size: 16px; display: flex; justify-content: space-between; }
 
@@ -261,17 +266,35 @@ dialog.doc-popup::backdrop { background: rgba(31, 26, 16, .55); }
 .employer-table { margin-top: 20px; max-width: 50%; }
 .search-wide { min-width: 260px; }
 .annexure { margin-top: 24px; }
+/* The annexure never scrolls sideways: it uses the full content width, headers wrap, and if it still does not fit,
+   app.js shows it as cards (see .stack-auto.cards). */
+.doc.annexure { max-width: none; }
+.annexure .doc-scroll { overflow-x: visible; }
 .annexure th, .annexure td { padding: 5px 6px; font-size: 12px; }
+.annexure th { white-space: normal; overflow-wrap: normal; line-height: 1.25; }
 .annexure tr.group-head td { background: #f3ead2; font-weight: 600; }
 .annexure tr.group-total td { font-weight: 600; border-bottom: 2px solid var(--border); }
+.annexure th.center { text-align: center; }
+.annexure td.strong { font-weight: 600; }
 
+@page annexure { size: A4 landscape; margin: 8mm; }
 @media print {
   .no-print { display: none !important; }
   .page-break { break-before: page; margin-top: 0; }
   body { background: #fff; }
   .content { padding: 0; max-width: none; }
   .doc { border: none; padding: 0; max-width: none; }
-  .doc-scroll { overflow: visible; }
+  .doc-scroll, .table-wrap { overflow: visible; }
+  .table-wrap { border: none; }
+  thead { display: table-header-group; } /* repeat headers on each printed page */
+  tr { break-inside: avoid; }
+  /* The annexure is wide: print it on landscape pages in a compact font so every column fits without scrolling. */
+  .annexure { page: annexure; }
+  .annexure table { width: 100%; }
+  .annexure th, .annexure td { font-size: 8.5px; padding: 3px 4px; }
+  .annexure th { white-space: normal; }
+  .annexure h2 { font-size: 15px; }
+  .annexure h3 { font-size: 12px; margin: 14px 0 6px; }
   /* Printing from the slide-over panel: print only its document. */
   html.print-panel .app, html.print-panel dialog:not(#detail-drawer) { display: none !important; }
   html.print-panel #detail-drawer { position: static; width: auto; max-width: none; height: auto; max-height: none; overflow: visible;
@@ -360,6 +383,33 @@ dialog.doc-popup::backdrop { background: rgba(31, 26, 16, .55); }
   .stack-table td.cell-badge { grid-row: 1; grid-column: 2; align-self: start; }
   .stack-table td.cell-actions { margin-top: 8px; text-align: left; }
   .stack-table td.empty { grid-column: 1 / -1; padding: 16px; text-align: center; }
+}
+
+/* Tables marked .stack-auto (labelled by app.js from their headers) get .cards on phones, and at any width when they are
+   too wide for their container: one card per row, each cell a "Label  value" line; cells spanning columns span the card. */
+@media screen {
+  .table-wrap:has(> .stack-auto.cards) { overflow: visible; border: none; background: none; }
+  .doc-scroll:has(> .stack-auto.cards) { overflow: visible; }
+  .stack-auto.cards, .doc .stack-auto.cards { display: block; width: 100%; border: none; }
+  .stack-auto.cards thead { display: none; }
+  .stack-auto.cards tbody, .stack-auto.cards tfoot { display: block; }
+  .stack-auto.cards tr { display: block; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; margin-bottom: 10px; }
+  .stack-auto.cards tr:hover { background: var(--panel); }
+  .stack-auto.cards td { display: block; padding: 3px 0; border: none; background: none; text-align: right; white-space: normal; overflow-wrap: anywhere; }
+  .stack-auto.cards td::before { content: attr(data-label); float: left; max-width: 48%; margin-right: 12px; color: var(--muted); font-weight: normal; text-align: left; }
+  .stack-auto.cards td::after { content: ""; display: table; clear: both; }
+  .stack-auto.cards td:not([data-label]) { text-align: left; }
+  .stack-auto.cards td:not([data-label])::before { content: none; }
+  .stack-auto.cards td:empty { display: none; }
+  .stack-auto.cards tr > td:first-child { font-weight: 600; }
+  .stack-auto.cards td > input, .stack-auto.cards td > select, .stack-auto.cards td > textarea { width: 52%; min-width: 0; }
+  .stack-auto.cards td.actions { display: flex; flex-wrap: wrap; justify-content: flex-start; gap: 6px; margin-top: 6px; }
+  .stack-auto.cards td.empty { text-align: center; padding: 12px 0; }
+  .stack-auto.cards tfoot tr { background: #fbf7ec; }
+  .stack-auto.cards tr.group-head { background: #f3ead2; padding: 8px 12px; }
+  .stack-auto.cards tr.group-total { background: #fbf7ec; }
+  .stack-auto.cards tr.group-total td, .stack-auto.cards tr.group-head td { border: none; background: none; }
+  .annexure .stack-auto.cards td { font-size: 13px; }
 }
 
 @media screen and (max-width: 820px) and (prefers-reduced-motion: reduce) {

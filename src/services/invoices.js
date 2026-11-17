@@ -78,22 +78,17 @@ function buildResources(customerId, month) {
   });
 }
 
-// Invoice lines: one per designation and rate.
+// Invoice lines: one per designation; the quantity is the number of resources and the amount is what they are billed.
 function linesFromResources(resources) {
   const groups = new Map();
   for (const r of resources) {
-    const key = [designationKey(r.designation), r.billing_type, r.rate].join('|');
-    if (!groups.has(key)) groups.set(key, { designation: r.designation || 'Consultant', unit: r.unit, rate: r.rate, quantity: 0, people: new Set() });
+    const key = designationKey(r.designation);
+    if (!groups.has(key)) groups.set(key, { designation: r.designation || 'Consultant', amount: 0, people: new Set() });
     const g = groups.get(key);
-    g.quantity += r.quantity;
+    g.amount += r.amount;
     g.people.add(r.employee_id);
   }
-  return [...groups.values()].map(g => ({
-    description: `${g.designation} — ${g.people.size} resource${g.people.size === 1 ? '' : 's'}`,
-    quantity: f.round2(g.quantity),
-    unit: g.unit,
-    rate: g.rate,
-  }));
+  return [...groups.values()].map(g => ({ description: g.designation, quantity: g.people.size, amount: f.round2(g.amount) }));
 }
 
 // Invoice totals: agency charges on the subtotal (Percent: a percentage of it; Fixed: a flat amount, when anything is
@@ -121,8 +116,10 @@ function recalcInvoice(id) {
 function replaceLines(invoiceId, lines) {
   tx(() => {
     db.prepare('DELETE FROM invoice_lines WHERE invoice_id = ?').run(invoiceId);
+    // Lines have a quantity (resources) and an amount; there is no rate, so rate is stored as the amount per resource.
     const stmt = db.prepare('INSERT INTO invoice_lines (invoice_id, description, quantity, unit, rate, amount, sort) VALUES (?, ?, ?, ?, ?, ?, ?)');
-    lines.forEach((l, i) => stmt.run(invoiceId, l.description, l.quantity, l.unit || null, l.rate, f.round2(l.quantity * l.rate), i));
+    lines.forEach((l, i) => stmt.run(invoiceId, l.description, l.quantity, null,
+      l.quantity ? f.round2(l.amount / l.quantity) : 0, f.round2(l.amount), i));
     recalcInvoice(invoiceId);
   });
 }
@@ -200,4 +197,84 @@ function generateForMonth(month) {
   });
 }
 
-module.exports = { buildResources, linesFromResources, invoiceTotals, createInvoice, replaceLines, rebuildInvoice, recalcInvoice, generateForMonth };
+// Statutory bucket of a payslip component, by its name and kind: Employee PF, Employer PF, Employee ESI, Employer ESI,
+// ESI (when the name does not say whose share it is) or PT; null for anything else. A component of kind Employer, or
+// named "employer"/"ER", is the employer's share; a PF component that does not say is the employee's share.
+function statutoryBucket(name, kind) {
+  const side = kind === 'Employer' || /employer|\ber\b/i.test(name) ? 'ER' : /employee|\bee\b/i.test(name) ? 'EE' : null;
+  if (/\b(e?pf|provident)\b/i.test(name)) return side === 'ER' ? 'PF_ER' : 'PF_EE';
+  if (/\besic?\b|state insurance/i.test(name)) return side ? `ESI_${side}` : 'ESI';
+  if (/\bpt\b|professional\s*tax/i.test(name)) return 'PT';
+  return null;
+}
+const STATUTORY = [
+  { key: 'PF_EE', label: 'Employee PF', group: 'EPF' },
+  { key: 'PF_ER', label: 'Employer PF', group: 'EPF' },
+  { key: 'ESI_EE', label: 'Employee ESI', group: 'ESI' },
+  { key: 'ESI_ER', label: 'Employer ESI', group: 'ESI' },
+  { key: 'ESI', label: 'ESI', group: 'ESI' },
+  { key: 'PT', label: 'PT', group: 'PT' },
+];
+const KIND_ORDER = { Earning: 0, Deduction: 1, Employer: 2 };
+
+// Payroll for an invoice's annexure: the payslips of the given employees in the month's payroll run.
+// Returns the component columns (by kind, then payslip order), each employee's payslip with its amounts by column key,
+// and the statutory amounts (Employee PF, Employer PF, ESI, PT) per employee and in total.
+// Statutory amounts come from deduction and employer lines. An earning line (e.g. employer PF added to gross) counts
+// only when the payslip has no deduction or employer line for that bucket, since the same amount is usually also
+// deducted and would otherwise be counted twice.
+function annexurePayroll(month, employeeIds) {
+  const run = db.prepare('SELECT id, status FROM payroll_runs WHERE month = ?').get(month);
+  const ids = [...new Set(employeeIds)];
+  const empty = { run: run || null, columns: [], slips: new Map(), statutory: null };
+  if (!run || !ids.length) return empty;
+  const marks = ids.map(() => '?').join(', ');
+  const slips = db.prepare(`SELECT * FROM payslips WHERE run_id = ? AND employee_id IN (${marks})`).all(run.id, ...ids);
+  if (!slips.length) return empty;
+  const slipIds = slips.map(p => p.id);
+  const lines = db.prepare(`SELECT * FROM payslip_lines WHERE payslip_id IN (${slipIds.map(() => '?').join(', ')}) ORDER BY sort, id`).all(...slipIds);
+
+  const columns = new Map();
+  const byId = new Map(slips.map(p => [p.id, { ...p, amounts: {}, statutory: {}, earned: {} }]));
+  for (const l of lines) {
+    const key = `${l.kind}|${l.name}`;
+    if (!columns.has(key)) columns.set(key, { key, kind: l.kind, name: l.name, sort: l.sort });
+    const slip = byId.get(l.payslip_id);
+    slip.amounts[key] = f.round2((slip.amounts[key] || 0) + l.amount);
+    const bucket = statutoryBucket(l.name, l.kind);
+    if (bucket) {
+      const into = l.kind === 'Earning' ? slip.earned : slip.statutory;
+      into[bucket] = f.round2((into[bucket] || 0) + l.amount);
+    }
+  }
+  for (const slip of byId.values()) {
+    for (const [bucket, amount] of Object.entries(slip.earned)) if (!(bucket in slip.statutory)) slip.statutory[bucket] = amount;
+  }
+
+  // Statutory columns: Employee PF, Employer PF and PT always; ESI split by share when the payslips say whose it is.
+  const present = new Set([...byId.values()].flatMap(p => Object.keys(p.statutory)));
+  const items = STATUTORY.filter(s => ['PF_EE', 'PF_ER', 'PT'].includes(s.key) || present.has(s.key));
+  if (!items.some(s => s.group === 'ESI')) items.splice(2, 0, STATUTORY.find(s => s.key === 'ESI'));
+  const totals = Object.fromEntries(items.map(s => [s.key, 0]));
+  const employees = Object.fromEntries(items.map(s => [s.key, 0]));
+  for (const slip of byId.values()) {
+    for (const s of items) {
+      const amount = slip.statutory[s.key] || 0;
+      totals[s.key] = f.round2(totals[s.key] + amount);
+      if (amount) employees[s.key]++;
+    }
+  }
+  const groupTotal = g => f.round2(items.filter(s => s.group === g).reduce((sum, s) => sum + totals[s.key], 0));
+  return {
+    run,
+    columns: [...columns.values()].sort((a, b) => KIND_ORDER[a.kind] - KIND_ORDER[b.kind] || a.sort - b.sort),
+    slips: new Map([...byId.values()].map(p => [p.employee_id, p])),
+    statutory: {
+      items, totals, employees,
+      groups: ['EPF', 'ESI', 'PT'].map(g => ({ group: g, total: groupTotal(g) })),
+      total: f.round2(Object.values(totals).reduce((sum, v) => sum + v, 0)),
+    },
+  };
+}
+
+module.exports = { annexurePayroll, buildResources, linesFromResources, invoiceTotals, createInvoice, replaceLines, rebuildInvoice, recalcInvoice, generateForMonth };

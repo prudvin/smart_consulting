@@ -48,7 +48,6 @@
           <td class="num"><strong><%= f.money(i.total) %></strong></td>
           <td><span class="badge <%= i.status %>"><%= i.status %></span></td>
           <td class="actions">
-            <% if (i.status === 'Draft') { %><a class="btn small secondary" href="/invoices/<%= i.id %>/edit">Edit</a><% } %>
             <a class="btn small secondary" href="/invoices/<%= i.id %>">View</a>
           </td>
         </tr>
