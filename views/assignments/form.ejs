@@ -1,0 +1,14 @@
+<%- include('../partials/header') %>
+<h1><%= title %></h1>
+<div class="card">
+  <% if (error) { %><div class="flash error"><%= error %></div><% } %>
+  <form method="post" action="<%= isNew ? '/assignments' : `/assignments/${a.id}` %>">
+    <%- include('../partials/csrf') %>
+    <%- include('_fields') %>
+    <div class="form-actions">
+      <button class="btn" type="submit"><%= isNew ? 'Create assignment' : 'Save' %></button>
+      <a class="btn secondary" href="<%= a.employee_id ? `/employees/${a.employee_id}` : '/employees' %>">Cancel</a>
+    </div>
+  </form>
+</div>
+<%- include('../partials/footer') %>

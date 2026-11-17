@@ -1,0 +1,24 @@
+<%- include('../partials/header') %>
+<h1>New invoice</h1>
+<div class="card" style="max-width: 640px">
+  <% if (error) { %><div class="flash error"><%= error %></div><% } %>
+  <form method="post" action="/invoices">
+    <%- include('../partials/csrf') %>
+    <div class="form-grid">
+      <div>
+        <label for="customer_id">Customer</label>
+        <select id="customer_id" name="customer_id" required>
+          <option value="">Select…</option>
+          <% for (const c of customers) { %><option value="<%= c.id %>" <%= c.id === customer_id ? 'selected' : '' %>><%= c.name %></option><% } %>
+        </select>
+      </div>
+      <div><label for="month">Billing month</label><input id="month" type="month" name="month" value="<%= month %>" required></div>
+      <div class="full"><label class="check"><input type="checkbox" name="prefill" value="1" checked> Pre-fill lines from this customer's assignments</label></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn" type="submit">Create draft</button>
+      <a class="btn secondary" href="/invoices">Cancel</a>
+    </div>
+  </form>
+</div>
+<%- include('../partials/footer') %>

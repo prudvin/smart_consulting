@@ -1,0 +1,78 @@
+<div class="two-col">
+  <div class="card">
+    <h2>Contact</h2>
+    <dl class="details">
+      <dt>Contact person</dt><dd><%= c.contact_person %></dd>
+      <dt>Email</dt><dd><% if (c.email) { %><a href="mailto:<%= c.email %>"><%= c.email %></a><% } %></dd>
+      <dt>Phone</dt><dd><% if (c.phone) { %><a href="tel:<%= c.phone.replace(/[^\d+]/g, '') %>"><%= c.phone %></a><% } %></dd>
+    </dl>
+  </div>
+  <div class="card">
+    <h2>Billing</h2>
+    <dl class="details">
+      <dt>GSTIN</dt><dd><%= c.gstin %></dd>
+      <dt>Address</dt><dd class="pre"><%= c.address %></dd>
+      <dt>Agency charges</dt><dd><%= c.agency_charge_type === 'Percent' ? `${f.qty(c.agency_charge_value)}% of manpower` : c.agency_charge_type === 'Fixed' ? `${f.money(c.agency_charge_value)} per invoice` : 'None' %></dd>
+      <dt>Invoiced</dt><dd><%= f.money(invoiceTotals.billed) %> <span class="muted">(<%= invoiceTotals.count %> invoice<%= invoiceTotals.count === 1 ? '' : 's' %>)</span></dd>
+      <dt>Outstanding</dt><dd><%= f.money(invoiceTotals.outstanding) %> <span class="muted">(sent, unpaid)</span></dd>
+    </dl>
+  </div>
+</div>
+
+<h2>Consultants assigned</h2>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Employee</th><th>Designation</th><th>Department</th><th>From</th><th>To</th></tr></thead>
+    <tbody>
+      <% for (const a of current) { %>
+        <tr class="clickable-row" tabindex="0" data-panel-row="/employees/<%= a.employee_id %>?panel=1&from_customer=<%= c.id %>" data-href="/employees/<%= a.employee_id %>" aria-label="Show details for <%= a.employee_name %>">
+          <td><%= a.employee_name %> <span class="muted"><%= a.employee_code %></span><% if (a.start_date > today) { %> <span class="badge future">Upcoming</span><% } %></td>
+          <td><%= a.designation %></td>
+          <td><%= a.department %></td>
+          <td><%= f.fmtDate(a.start_date) %></td>
+          <td><%= a.billable_end === '9999-12-31' ? 'Ongoing' : f.fmtDate(a.billable_end) %></td>
+        </tr>
+      <% } %>
+      <% if (!current.length) { %><tr><td colspan="5" class="empty">No consultants assigned at the moment.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+<% if (past.length) { %>
+  <details class="past-assignments">
+    <summary>Past assignments (<%= past.length %>)</summary>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Employee</th><th>Designation</th><th>From</th><th>To</th></tr></thead>
+        <tbody>
+          <% for (const a of past) { %>
+            <tr class="clickable-row" tabindex="0" data-panel-row="/employees/<%= a.employee_id %>?panel=1&from_customer=<%= c.id %>" data-href="/employees/<%= a.employee_id %>" aria-label="Show details for <%= a.employee_name %>">
+              <td><%= a.employee_name %> <span class="muted"><%= a.employee_code %></span></td>
+              <td><%= a.designation %></td>
+              <td><%= f.fmtDate(a.start_date) %></td>
+              <td><%= f.fmtDate(a.billable_end) %></td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </details>
+<% } %>
+
+<div class="page-head"><h2>Recent invoices</h2><a class="btn small secondary" href="/invoices?customer_id=<%= c.id %>">All invoices</a></div>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Number</th><th>Month</th><th class="num">Total</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      <% for (const i of invoices) { %>
+        <tr>
+          <td><%= i.number %></td>
+          <td><%= f.monthLabel(i.month) %></td>
+          <td class="num"><%= f.money(i.total) %></td>
+          <td><span class="badge <%= i.status %>"><%= i.status %></span></td>
+          <td class="actions"><a class="btn small secondary" href="/invoices/<%= i.id %>">View</a></td>
+        </tr>
+      <% } %>
+      <% if (!invoices.length) { %><tr><td colspan="5" class="empty">No invoices yet.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>

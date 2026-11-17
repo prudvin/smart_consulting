@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= title %> · <%= companyName %></title>
+  <link rel="icon" type="image/png" href="/static/logo.png">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+<% if (user) {
+  const links = [
+    ['/', 'Dashboard'],
+    ['/employees', 'Employees'],
+    ['/customers', 'Customers'],
+    ['/attendance/month', 'Attendance'],
+  ];
+  const payLinks = [
+    ['/employee-pay', 'Employee pay'],
+    ['/payroll', 'Payroll'],
+    ['/invoices', 'Invoices'],
+  ];
+  const adminLinks = [
+    ['/pay-profiles', 'Pay profiles'],
+    ['/users', 'Users'],
+    ['/settings', 'Settings'],
+  ];
+  // A link is active anywhere in its section, e.g. "Attendance" on /attendance, /attendance/month and /attendance/monthly.
+  const section = p => p.split('/')[1];
+  const isActive = href => href === '/' ? path === '/' : section(path) === section(href);
+%>
+<div class="app">
+  <header class="topbar no-print">
+    <button type="button" class="menu-btn" data-nav-toggle aria-controls="sidebar" aria-expanded="false" aria-label="Open menu">
+      <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </button>
+    <a class="topbar-brand" href="/"><img src="/static/logo.png" alt=""><span><%= companyName %></span></a>
+  </header>
+  <div class="nav-backdrop no-print" data-nav-close></div>
+  <aside class="sidebar no-print" id="sidebar">
+    <a class="brand" href="/" title="<%= companyName %>"><img src="/static/logo.png" alt="<%= companyName %>"></a>
+    <nav>
+      <% for (const [href, label] of links) { %><a href="<%= href %>" class="<%= isActive(href) ? 'active' : '' %>"><%= label %></a><% } %>
+      <div class="nav-section">Payroll &amp; billing</div>
+      <% for (const [href, label] of payLinks) { %><a href="<%= href %>" class="<%= isActive(href) ? 'active' : '' %>"><%= label %></a><% } %>
+      <% if (user.role === 'admin') { %>
+        <div class="nav-section">Administration</div>
+        <% for (const [href, label] of adminLinks) { %><a href="<%= href %>" class="<%= isActive(href) ? 'active' : '' %>"><%= label %></a><% } %>
+      <% } %>
+    </nav>
+    <div class="who">
+      <div><strong><%= user.name %></strong> <span class="muted-light">(<%= user.role %>)</span></div>
+      <a href="/account">Change password</a> ·
+      <form method="post" action="/logout" class="inline">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <button type="submit" class="link">Log out</button>
+      </form>
+    </div>
+  </aside>
+  <main class="content">
+<% } else { %>
+  <main class="content bare">
+<% } %>
+<% if (flash) { %><div class="flash <%= flash.type %> no-print"><%= flash.msg %></div><% } %>

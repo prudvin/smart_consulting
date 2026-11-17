@@ -1,0 +1,32 @@
+<% const px = locals.idPrefix || ''; %>
+    <h2>Basic details</h2>
+    <div class="form-grid">
+      <div><label for="<%= px %>code">Employee code</label><input id="<%= px %>code" name="code" value="<%= e.code || '' %>" required></div>
+      <div><label for="<%= px %>name">Full name</label><input id="<%= px %>name" name="name" value="<%= e.name || '' %>" required></div>
+      <div><label for="<%= px %>email">Email</label><input id="<%= px %>email" type="email" name="email" value="<%= e.email || '' %>"></div>
+      <div><label for="<%= px %>phone">Phone</label><input id="<%= px %>phone" name="phone" value="<%= e.phone || '' %>"></div>
+      <div><label for="<%= px %>join_date">Join date</label><input id="<%= px %>join_date" type="date" name="join_date" value="<%= e.join_date || '' %>"></div>
+      <div>
+        <label for="<%= px %>resignation_date">Resignation date <span class="hint">(last working day)</span></label>
+        <input id="<%= px %>resignation_date" type="date" name="resignation_date" value="<%= e.resignation_date || '' %>" min="<%= e.join_date || '' %>" data-resignation>
+        <span class="hint">Setting this makes the employee Inactive. They are still paid and billed up to this date.</span>
+      </div>
+      <div>
+        <label for="<%= px %>status">Status</label>
+        <select id="<%= px %>status" name="status" data-status>
+          <option <%= e.status === 'Active' ? 'selected' : '' %>>Active</option>
+          <option <%= e.status === 'Inactive' ? 'selected' : '' %>>Inactive</option>
+        </select>
+      </div>
+    </div>
+    <h2>Statutory &amp; bank details</h2>
+    <div class="form-grid">
+      <div><label for="<%= px %>pan">PAN</label><input id="<%= px %>pan" name="pan" value="<%= e.pan || '' %>" maxlength="10"></div>
+      <div><label for="<%= px %>bank_name">Bank name</label><input id="<%= px %>bank_name" name="bank_name" value="<%= e.bank_name || '' %>"></div>
+      <div><label for="<%= px %>bank_account">Bank account number</label><input id="<%= px %>bank_account" name="bank_account" value="<%= e.bank_account || '' %>"></div>
+      <div><label for="<%= px %>ifsc">IFSC</label><input id="<%= px %>ifsc" name="ifsc" value="<%= e.ifsc || '' %>" maxlength="11"></div>
+      <div class="full">
+        <label class="check"><input type="checkbox" name="pt_exempt" value="1" <%= e.pt_exempt ? 'checked' : '' %>> Exempt from professional tax</label>
+        <span class="hint">e.g. persons with 40% or more disability, per the Telangana professional tax schedule.</span>
+      </div>
+    </div>

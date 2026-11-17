@@ -1,0 +1,20 @@
+<%- include('partials/header') %>
+<div class="card login-box">
+  <img class="login-logo" src="/static/logo.png" alt="">
+  <h1 class="sr-only"><%= companyName %></h1>
+  <p class="muted">Sign in to continue</p>
+  <% if (error) { %><div class="flash error"><%= error %></div><% } %>
+  <form method="post" action="/login">
+    <%- include('partials/csrf') %>
+    <div>
+      <label for="username">Username</label>
+      <input id="username" name="username" value="<%= username %>" required autofocus autocomplete="username">
+    </div>
+    <div style="margin-top: 12px">
+      <label for="password">Password</label>
+      <input id="password" type="password" name="password" required autocomplete="current-password">
+    </div>
+    <div class="form-actions"><button class="btn" type="submit" style="width: 100%">Sign in</button></div>
+  </form>
+</div>
+<%- include('partials/footer') %>

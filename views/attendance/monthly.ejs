@@ -1,0 +1,62 @@
+<%- include('../partials/header') %>
+<%- include('_tabs', { tab: 'register', tabMonth }) %>
+<div class="page-head">
+  <h1>Leave register — FY <%= fy %>–<%= String(fy + 1).slice(2) %></h1>
+  <div class="buttons">
+    <a class="btn secondary" href="/attendance/monthly?fy=<%= fy - 1 %>">← FY <%= fy - 1 %>–<%= String(fy).slice(2) %></a>
+    <a class="btn secondary" href="/attendance/monthly?fy=<%= fy + 1 %>">FY <%= fy + 1 %>–<%= String(fy + 2).slice(2) %> →</a>
+  </div>
+</div>
+<p class="muted">Leave days per employee per month (April–March). Leave is unpaid. Click a month to enter or change its leave days.</p>
+<%
+  const filterOptions = {
+    customers: [...new Set(rows.flatMap(r => (r.customer || '').split(', ').filter(Boolean)))].sort((a, b) => a.localeCompare(b)),
+    designations: [...new Set(rows.map(r => r.designation).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+  };
+  const customersAttr = r => (r.customer ? r.customer.split(', ').join('|') : '__none__');
+%>
+<%- include('../partials/customer-designation-filters', { tbodyId: 'register-rows', options: filterOptions }) %>
+<div class="table-wrap">
+  <table class="leave-register">
+    <thead>
+      <tr>
+        <th>Code</th><th>Employee</th><th>Customer</th><th>Designation</th>
+        <% for (const m of months) { %>
+          <th class="num <%= m === current ? 'current' : '' %>"><a href="/attendance/month?month=<%= m %>" title="Enter leave for <%= f.monthLabel(m) %>"><%= f.monthLabel(m).slice(0, 3) %><br><span class="muted"><%= m.slice(0, 4) %></span></a></th>
+        <% } %>
+        <th class="num">Total</th>
+      </tr>
+    </thead>
+    <tbody id="register-rows">
+      <% for (const r of rows) { %>
+        <tr data-customers="<%= customersAttr(r) %>" data-designation="<%= r.designation || '' %>">
+          <td><%= r.code %></td>
+          <td class="name"><a href="/employees/<%= r.id %>" data-panel-open="/employees/<%= r.id %>?panel=1"><%= r.name %></a></td>
+          <td class="name"><%= r.customer || '' %><% if (!r.customer) { %><span class="muted">—</span><% } %></td>
+          <td class="name"><%= r.designation %></td>
+          <% r.cells.forEach((c, i) => { %>
+            <% if (!c) { %><td class="num muted"></td>
+            <% } else { %>
+              <td class="num <%= c.leave ? 'has-leave' : 'muted' %> <%= c.source === 'Daily' ? 'from-daily' : '' %> <%= months[i] === current ? 'current' : '' %>"
+                  title="<%= f.monthLabel(months[i]) %>: <%= f.qty(c.leave) %> leave day<%= c.leave === 1 ? '' : 's' %><%= c.source === 'Daily' ? ' (from daily records)' : '' %><%= c.note ? ` — ${c.note}` : '' %>"><%= f.qty(c.leave) %></td>
+            <% } %>
+          <% }) %>
+          <td class="num"><strong><%= f.qty(r.total) %></strong></td>
+        </tr>
+      <% } %>
+      <% if (!rows.length) { %><tr><td colspan="17" class="empty">No active employees.</td></tr><% } %>
+      <tr data-filter-empty hidden><td colspan="17" class="empty">No employees match the filters.</td></tr>
+    </tbody>
+    <% if (rows.length) { %>
+      <tfoot>
+        <tr>
+          <td colspan="4">Total</td>
+          <% for (const m of months) { %><td class="num"><%= m > current ? '' : f.qty(monthTotals[m]) %></td><% } %>
+          <td class="num"><%= f.qty(grandTotal) %></td>
+        </tr>
+      </tfoot>
+    <% } %>
+  </table>
+</div>
+<p class="hint">Underlined figures come from older day-by-day records for months without a monthly entry. Blank: a future month, or before the employee joined.</p>
+<%- include('../partials/footer') %>

@@ -1,0 +1,78 @@
+<div class="two-col">
+  <div class="card">
+    <h2>Details</h2>
+    <dl class="details">
+      <dt>Code</dt><dd><%= e.code %></dd>
+      <dt>Email</dt><dd><%= e.email %></dd>
+      <dt>Phone</dt><dd><%= e.phone %></dd>
+      <dt>Joined</dt><dd><%= f.fmtDate(e.join_date) %></dd>
+      <% if (e.resignation_date) { %><dt>Resignation date</dt><dd><%= f.fmtDate(e.resignation_date) %> <span class="muted">(last working day)</span></dd><% } %>
+      <dt>PAN</dt><dd><%= e.pan %></dd>
+      <dt>Professional tax</dt><dd><%= e.pt_exempt ? 'Exempt' : 'Telangana slab' %></dd>
+      <dt>Bank</dt><dd><%= [e.bank_name, e.bank_account, e.ifsc].filter(Boolean).join(' · ') %></dd>
+    </dl>
+  </div>
+  <div class="card">
+    <h2>Attendance — <%= f.monthLabel(month) %></h2>
+    <dl class="details">
+      <dt>Leave days</dt><dd><%= f.qty(leaveThisMonth) %></dd>
+      <% if (monthlyEntry && monthlyEntry.note) { %><dt>Note</dt><dd><%= monthlyEntry.note %></dd><% } %>
+    </dl>
+    <p><a href="/attendance/month?month=<%= month %>">Enter leave</a> · <a href="/attendance/monthly?month=<%= month %>">Leave register</a></p>
+  </div>
+</div>
+
+<div class="page-head"><h2>Customer assignments</h2><a class="btn small" href="/assignments/new?employee_id=<%= e.id %>" data-panel-load="/assignments/new?employee_id=<%= e.id %>&panel=1">New assignment</a></div>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Customer</th><th>Designation</th><th>Department</th><th>From</th><th>To</th><th></th></tr></thead>
+    <tbody>
+      <% for (const a of assignments) { %>
+        <tr>
+          <td><%= a.customer_name %></td>
+          <td><%= a.designation %></td>
+          <td><%= a.department %></td>
+          <td><%= f.fmtDate(a.start_date) %></td>
+          <td><%= a.end_date ? f.fmtDate(a.end_date) : 'Ongoing' %></td>
+          <td class="actions"><a class="btn small secondary" href="/assignments/<%= a.id %>/edit" data-panel-load="/assignments/<%= a.id %>/edit?panel=1">Edit</a></td>
+        </tr>
+      <% } %>
+      <% if (!assignments.length) { %><tr><td colspan="6" class="empty">No assignments.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+
+<div class="page-head"><h2>Pay profile history</h2><a class="btn small" href="/employee-pay/new?employee_id=<%= e.id %>">Assign pay profile</a></div>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Effective from</th><th>Pay profile</th><th class="num">Monthly gross</th></tr></thead>
+    <tbody>
+      <% for (const p of pay) { %>
+        <tr>
+          <td><%= f.fmtDate(p.effective_from) %></td>
+          <td><%= p.profile_name %></td>
+          <td class="num"><%= f.money(p.monthly_gross) %></td>
+        </tr>
+      <% } %>
+      <% if (!pay.length) { %><tr><td colspan="3" class="empty">No pay profile assigned — this employee will be skipped in payroll.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+
+<h2>Recent payslips</h2>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Month</th><th class="num">Paid days</th><th class="num">Net pay</th><th></th></tr></thead>
+    <tbody>
+      <% for (const s of payslips) { %>
+        <tr>
+          <td><%= f.monthLabel(s.month) %></td>
+          <td class="num"><%= f.qty(s.paid_days) %></td>
+          <td class="num"><%= f.money(s.net_pay) %></td>
+          <td class="actions"><a class="btn small secondary" href="/payroll/payslips/<%= s.id %>" data-popup-load="/payroll/payslips/<%= s.id %>?popup=1">View</a></td>
+        </tr>
+      <% } %>
+      <% if (!payslips.length) { %><tr><td colspan="4" class="empty">No payslips yet.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>

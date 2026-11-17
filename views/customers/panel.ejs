@@ -1,0 +1,16 @@
+<div class="drawer-head">
+  <div class="drawer-title">
+    <h2 id="drawer-title"><%= c.name %> <span class="badge <%= c.status %>"><%= c.status %></span></h2>
+    <div class="muted small-text"><%= counts.now %> consultant<%= counts.now === 1 ? '' : 's' %> assigned<%= counts.upcoming ? ` (+${counts.upcoming} upcoming)` : '' %><%= c.gstin ? ` · GSTIN ${c.gstin}` : '' %></div>
+  </div>
+  <button type="button" class="icon-btn" data-close-dialog aria-label="Close">
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M18.3 5.71 12 12.01l-6.3-6.3-1.41 1.41 6.3 6.3-6.3 6.3 1.41 1.41 6.3-6.3 6.3 6.3 1.41-1.41-6.3-6.3 6.3-6.3z"/></svg>
+  </button>
+</div>
+<div class="drawer-actions">
+  <a class="btn" href="/customers/<%= c.id %>/edit" data-panel-load="/customers/<%= c.id %>/edit?panel=1">Edit</a>
+</div>
+<div class="drawer-body">
+  <% if (locals.savedMsg) { %><div class="flash success"><%= savedMsg %></div><% } %>
+  <%- include('_details') %>
+</div>

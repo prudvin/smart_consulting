@@ -1,0 +1,65 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <h1>Employees</h1>
+  <div class="buttons"><a class="btn" href="/employees/new">Add employee</a></div>
+</div>
+<form class="filters" method="get" data-autosubmit>
+  <div><label for="q">Search</label><input id="q" name="q" value="<%= q %>" placeholder="Name, code, customer, designation…"></div>
+  <div>
+    <label for="status">Status</label>
+    <select id="status" name="status">
+      <option value="Active" <%= status === 'Active' ? 'selected' : '' %>>Active</option>
+      <option value="Inactive" <%= status === 'Inactive' ? 'selected' : '' %>>Inactive</option>
+      <option value="" <%= status === '' ? 'selected' : '' %>>All</option>
+    </select>
+  </div>
+  <div>
+    <label for="f-customer">Customer</label>
+    <select id="f-customer" name="customer">
+      <option value="">All</option>
+      <% for (const c of options.customer) { %><option <%= filters.customer === c ? 'selected' : '' %>><%= c %></option><% } %>
+      <option value="__none__" <%= filters.customer === '__none__' ? 'selected' : '' %>>No customer</option>
+    </select>
+  </div>
+  <div>
+    <label for="f-designation">Designation</label>
+    <select id="f-designation" name="designation">
+      <option value="">All</option>
+      <% for (const d of options.designation) { %><option <%= filters.designation === d ? 'selected' : '' %>><%= d %></option><% } %>
+    </select>
+  </div>
+  <div>
+    <label for="f-department">Department</label>
+    <select id="f-department" name="department">
+      <option value="">All</option>
+      <% for (const d of options.department) { %><option <%= filters.department === d ? 'selected' : '' %>><%= d %></option><% } %>
+    </select>
+  </div>
+  <div class="filter-buttons">
+    <button class="btn secondary" type="submit">Filter</button>
+    <a class="btn secondary" href="/employees">Clear</a>
+  </div>
+</form>
+<p class="muted small-text"><%= employees.length %> employee<%= employees.length === 1 ? '' : 's' %></p>
+<div class="table-wrap">
+  <table class="stack-table">
+    <thead><tr><th>Code</th><th>Name</th><th>Customer</th><th>Designation</th><th>Department</th><th>Email</th><th>Phone</th><th>Joined</th><th>Resigned</th></tr></thead>
+    <tbody>
+      <% for (const e of employees) { %>
+        <tr class="clickable-row" tabindex="0" data-panel-url="/employees/<%= e.id %>?panel=1" aria-label="Show details for <%= e.name %>">
+          <td data-label="Code"><%= e.code %></td>
+          <td class="cell-title"><%= e.name %></td>
+          <td data-label="Customer"><%= e.cur_customer %></td>
+          <td data-label="Designation"><%= e.cur_designation %></td>
+          <td data-label="Department"><%= e.cur_department %></td>
+          <td data-label="Email"><% if (e.email) { %><a href="mailto:<%= e.email %>"><%= e.email %></a><% } %></td>
+          <td data-label="Phone"><% if (e.phone) { %><a href="tel:<%= e.phone.replace(/[^\d+]/g, '') %>"><%= e.phone %></a><% } %></td>
+          <td data-label="Joined"><%= f.fmtDate(e.join_date) %></td>
+          <td data-label="Resigned"><%= f.fmtDate(e.resignation_date) %></td>
+        </tr>
+      <% } %>
+      <% if (!employees.length) { %><tr><td colspan="9" class="empty">No employees found.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+<%- include('../partials/footer') %>

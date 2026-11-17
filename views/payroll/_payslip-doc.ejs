@@ -1,0 +1,60 @@
+<div class="doc">
+  <div class="doc-head">
+    <div>
+      <img class="doc-logo" src="/static/logo.png" alt="">
+      <h2><%= settings.company_name %></h2>
+      <div class="pre muted"><%= settings.company_address %></div>
+    </div>
+    <div>
+      <div class="doc-title">Payslip</div>
+      <div style="text-align: right"><%= f.monthLabel(slip.month) %><% if (slip.run_status !== 'Finalized') { %><br><span class="badge Draft">Draft</span><% } %></div>
+    </div>
+  </div>
+
+  <div class="two-col" style="margin-bottom: 20px">
+    <dl class="details">
+      <dt>Employee</dt><dd><strong><%= slip.employee_name %></strong></dd>
+      <dt>Code</dt><dd><%= slip.employee_code %></dd>
+      <dt>Designation</dt><dd><%= slip.designation %></dd>
+      <dt>Department</dt><dd><%= slip.department %></dd>
+      <dt>Date of joining</dt><dd><%= f.fmtDate(slip.join_date) %></dd>
+    </dl>
+    <dl class="details">
+      <dt>PAN</dt><dd><%= slip.pan %></dd>
+      <dt>Bank</dt><dd><%= slip.bank_name %></dd>
+      <dt>Account no.</dt><dd><%= slip.bank_account %></dd>
+      <dt>Days in month</dt><dd><%= slip.days_in_month %></dd>
+      <dt>Paid days</dt><dd><%= f.qty(slip.paid_days) %></dd>
+      <dt>Leave days</dt><dd><%= f.qty(slip.leave_days) %></dd>
+    </dl>
+  </div>
+
+  <div class="two-col">
+    <table>
+      <thead><tr><th>Earnings</th><th class="num">Amount (₹)</th></tr></thead>
+      <tbody><% for (const l of earnings) { %><tr><td><%= l.name %></td><td class="num"><%= f.amount(l.amount) %></td></tr><% } %></tbody>
+      <tfoot><tr><td>Gross earnings</td><td class="num"><%= f.amount(slip.gross_earnings) %></td></tr></tfoot>
+    </table>
+    <table>
+      <thead><tr><th>Deductions</th><th class="num">Amount (₹)</th></tr></thead>
+      <tbody>
+        <% for (const l of deductions) { %><tr><td><%= l.name %></td><td class="num"><%= f.amount(l.amount) %></td></tr><% } %>
+        <% if (!deductions.length) { %><tr><td colspan="2" class="muted">None</td></tr><% } %>
+      </tbody>
+      <tfoot><tr><td>Total deductions</td><td class="num"><%= f.amount(slip.total_deductions) %></td></tr></tfoot>
+    </table>
+  </div>
+
+  <div class="net-pay"><span>Net pay</span><strong><%= f.money(slip.net_pay) %></strong></div>
+  <% if (employer.length) { %>
+    <table class="employer-table">
+      <thead><tr><th>Employer contributions <span class="muted">(not deducted from pay)</span></th><th class="num">Amount (₹)</th></tr></thead>
+      <tbody><% for (const l of employer) { %><tr><td><%= l.name %></td><td class="num"><%= f.amount(l.amount) %></td></tr><% } %></tbody>
+      <tfoot>
+        <tr><td>Total employer contributions</td><td class="num"><%= f.amount(slip.employer_contributions) %></td></tr>
+        <tr><td>Cost to company (gross + employer contributions)</td><td class="num"><%= f.amount(slip.gross_earnings + slip.employer_contributions) %></td></tr>
+      </tfoot>
+    </table>
+  <% } %>
+  <p class="muted small-text" style="margin-top: 24px">Monthly gross as per pay profile “<%= slip.profile_name %>”: <%= f.money(slip.monthly_gross) %>. This is a computer-generated payslip.</p>
+</div>

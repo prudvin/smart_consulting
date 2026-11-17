@@ -1,0 +1,114 @@
+<%- include('../partials/header') %>
+<%- include('_tabs', { tab: 'month', tabMonth: month }) %>
+<div class="page-head">
+  <h1>Monthly attendance — <%= f.monthLabel(month) %> <span class="muted" style="font-weight: 400; font-size: 15px">(<%= dim %> days)</span></h1>
+  <div class="buttons">
+    <a class="btn secondary" href="/attendance/month?month=<%= prev %>">← Previous</a>
+    <a class="btn secondary" href="/attendance/month?month=<%= next %>">Next →</a>
+  </div>
+</div>
+
+<form class="filters" method="get">
+  <div><label for="month">Month</label><input id="month" type="month" name="month" value="<%= month %>"></div>
+  <div><button class="btn secondary" type="submit">Go</button></div>
+</form>
+
+<p class="muted">
+  Enter the number of <strong>leave days</strong> each employee took this month. Leave is unpaid:
+  salary is paid for <em>days employed − leave days</em>. Every other weekday (Monday–Friday) counts as worked,
+  so customers on daily rates are billed <em>working days − leave days</em>, and on hourly rates 8 hours per day worked.
+  A blank entry means no leave<% if (hasDaily) { %>, unless the employee has daily records for this month, which are then used<% } %>.
+</p>
+
+<% if (error) { %><div class="flash error"><%= error %></div><% } %>
+
+<% if (customers.length) { %>
+  <h2>Customer attendance — <%= f.monthLabel(month) %></h2>
+  <p class="muted small-text">Finalize a customer once its consultants' leave days are complete. Their leave days are then locked for the month<%= user.role === 'admin' ? '' : '; only an administrator can reopen it' %>.</p>
+  <div class="table-wrap">
+    <table class="stack-table finalize-table">
+      <thead><tr><th>Customer</th><th class="num">Consultants</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+        <% for (const c of customers) { %>
+          <tr>
+            <td data-label="Customer"><a href="/customers/<%= c.id %>" data-panel-open="/customers/<%= c.id %>?panel=1"><%= c.name %></a></td>
+            <td class="num" data-label="Consultants"><%= c.consultants %></td>
+            <td data-label="Status">
+              <% if (c.finalized) { %>
+                <span class="badge Finalized">Finalized</span>
+                <span class="muted small-text"><%= f.fmtDate(c.finalized.finalized_at.slice(0, 10)) %><% if (c.finalized.finalized_by_name) { %> by <%= c.finalized.finalized_by_name %><% } %></span>
+              <% } else { %><span class="badge Draft">Open</span><% } %>
+            </td>
+            <td class="actions">
+              <% if (!c.finalized) { %>
+                <form method="post" action="/attendance/month/finalize" class="inline" data-confirm="Finalize attendance for <%= c.name %> for <%= f.monthLabel(month) %>? Leave days for its consultants will be locked.">
+                  <%- include('../partials/csrf') %>
+                  <input type="hidden" name="month" value="<%= month %>"><input type="hidden" name="customer_id" value="<%= c.id %>">
+                  <button class="btn small" type="submit">Finalize</button>
+                </form>
+              <% } else if (user.role === 'admin') { %>
+                <form method="post" action="/attendance/month/reopen" class="inline" data-confirm="Reopen attendance for <%= c.name %> for <%= f.monthLabel(month) %>?">
+                  <%- include('../partials/csrf') %>
+                  <input type="hidden" name="month" value="<%= month %>"><input type="hidden" name="customer_id" value="<%= c.id %>">
+                  <button class="btn small secondary" type="submit">Reopen</button>
+                </form>
+              <% } %>
+            </td>
+          </tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+  <h2>Leave days</h2>
+<% } %>
+
+<%
+  const filterOptions = {
+    customers: [...new Set(rows.flatMap(r => (r.month_customers || '').split(', ').filter(Boolean)))].sort((a, b) => a.localeCompare(b)),
+    designations: [...new Set(rows.map(r => r.month_designation).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
+  };
+  const customersAttr = r => (r.month_customers ? r.month_customers.split(', ').join('|') : '__none__');
+%>
+<%- include('../partials/customer-designation-filters', { tbodyId: 'month-rows', options: filterOptions }) %>
+
+<form method="post" action="/attendance/month">
+  <%- include('../partials/csrf') %>
+  <input type="hidden" name="month" value="<%= month %>">
+  <div class="filters">
+    <% if (hasDaily) { %><button type="button" class="btn small secondary" data-fill-month="daily">Fill empty rows from daily records</button><% } %>
+    <button type="button" class="btn small secondary" data-fill-month="zero">Set empty rows to 0 leave</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Code</th><th>Employee</th><th>Customer</th><th>Designation</th><th class="num">Days employed</th><th class="num">Working days</th>
+          <% if (hasDaily) { %><th class="num">Daily records<br><span class="hint">days off</span></th><% } %>
+          <th style="width: 120px">Leave days</th><th class="num">Paid days</th><th class="num">Days worked</th><th>Note</th>
+        </tr>
+      </thead>
+      <tbody id="month-rows">
+        <% for (const r of rows) { %>
+          <tr data-customers="<%= customersAttr(r) %>" data-designation="<%= r.month_designation || '' %>" data-month-row data-employed="<%= r.employedDays %>" data-weekdays="<%= r.weekdays %>" data-daily-leave="<%= r.dailyLeave ?? '' %>">
+            <td><%= r.code %></td>
+            <td><a href="/employees/<%= r.id %>" data-panel-open="/employees/<%= r.id %>?panel=1"><%= r.name %></a><% if (r.join_date && r.join_date > f.monthStart(month)) { %> <span class="muted small-text">joined <%= f.fmtDate(r.join_date) %></span><% } %><% if (r.resignation_date && r.resignation_date <= f.monthEnd(month)) { %> <span class="badge Inactive">last day <%= f.fmtDate(r.resignation_date) %></span><% } %><% if (r.locked.length) { %> <span class="badge Finalized" title="Finalized for <%= r.locked.join(', ') %>">Finalized</span><% } %></td>
+            <td><%= r.month_customers || '' %><% if (!r.month_customers) { %><span class="muted">—</span><% } %></td>
+            <td><%= r.month_designation %></td>
+            <td class="num"><%= r.employedDays %></td>
+            <td class="num"><%= r.weekdays %></td>
+            <% if (hasDaily) { %><td class="num <%= r.hasEntry ? 'muted' : '' %>"><%= r.dailyLeave == null ? '—' : f.qty(r.dailyLeave) %><% if (r.hasEntry && r.dailyLeave != null) { %><br><span class="small-text">overridden</span><% } %></td><% } %>
+            <td><input type="number" name="rows[e<%= r.id %>][leave_days]" value="<%= r.leave_days %>" min="0" max="<%= r.weekdays %>" step="0.5" placeholder="<%= r.dailyLeave == null ? '0' : 'daily' %>" data-leave aria-label="Leave days for <%= r.name %>"<%= r.locked.length ? ' disabled' : '' %>></td>
+            <td class="num" data-paid></td>
+            <td class="num" data-worked></td>
+            <td><input name="rows[e<%= r.id %>][note]" value="<%= r.note %>" aria-label="Note for <%= r.name %>"<%= r.locked.length ? ' disabled' : '' %>></td>
+          </tr>
+        <% } %>
+        <% if (!rows.length) { %><tr><td colspan="<%= hasDaily ? 11 : 10 %>" class="empty">No active employees this month.</td></tr><% } %>
+        <tr data-filter-empty hidden><td colspan="<%= hasDaily ? 11 : 10 %>" class="empty">No employees match the filters.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <% if (rows.length) { %><div class="form-actions"><button class="btn" type="submit">Save leave days</button></div><% } %>
+</form>
+<p class="hint">Working days count Monday–Friday from the employee's joining date to their resignation date (if any); public holidays are not deducted.</p>
+<%- include('../partials/footer') %>

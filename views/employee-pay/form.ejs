@@ -1,0 +1,34 @@
+<%- include('../partials/header') %>
+<h1><%= title %></h1>
+<div class="card" style="max-width: 720px">
+  <% if (error) { %><div class="flash error"><%= error %></div><% } %>
+  <% if (!profiles.length) { %>
+    <div class="flash info">Create a <a href="/pay-profiles/new">pay profile</a> first.</div>
+  <% } %>
+  <form method="post" action="<%= isNew ? '/employee-pay' : `/employee-pay/${p.id}` %>">
+    <%- include('../partials/csrf') %>
+    <div class="form-grid">
+      <div>
+        <label for="employee_id">Employee</label>
+        <select id="employee_id" name="employee_id" required>
+          <option value="">Select…</option>
+          <% for (const e of employees) { %><option value="<%= e.id %>" <%= e.id === p.employee_id ? 'selected' : '' %>><%= e.name %> (<%= e.code %>)</option><% } %>
+        </select>
+      </div>
+      <div>
+        <label for="profile_id">Pay profile</label>
+        <select id="profile_id" name="profile_id" required>
+          <option value="">Select…</option>
+          <% for (const pr of profiles) { %><option value="<%= pr.id %>" <%= pr.id === p.profile_id ? 'selected' : '' %>><%= pr.name %></option><% } %>
+        </select>
+      </div>
+      <div><label for="monthly_gross">Monthly gross (₹)</label><input id="monthly_gross" type="number" step="0.01" min="1" name="monthly_gross" value="<%= p.monthly_gross %>" required></div>
+      <div><label for="effective_from">Effective from</label><input id="effective_from" type="date" name="effective_from" value="<%= p.effective_from %>" required></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn" type="submit"><%= isNew ? 'Assign' : 'Save' %></button>
+      <a class="btn secondary" href="/employee-pay">Cancel</a>
+    </div>
+  </form>
+</div>
+<%- include('../partials/footer') %>

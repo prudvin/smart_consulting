@@ -1,0 +1,30 @@
+<% const px = locals.idPrefix || ''; %>
+    <div class="form-grid">
+      <div><label for="<%= px %>name">Customer name</label><input id="<%= px %>name" name="name" value="<%= c.name || '' %>" required></div>
+      <div><label for="<%= px %>contact_person">Contact person</label><input id="<%= px %>contact_person" name="contact_person" value="<%= c.contact_person || '' %>"></div>
+      <div><label for="<%= px %>email">Email</label><input id="<%= px %>email" type="email" name="email" value="<%= c.email || '' %>"></div>
+      <div><label for="<%= px %>phone">Phone</label><input id="<%= px %>phone" name="phone" value="<%= c.phone || '' %>"></div>
+      <div><label for="<%= px %>gstin">GSTIN</label><input id="<%= px %>gstin" name="gstin" value="<%= c.gstin || '' %>" maxlength="15"></div>
+      <div>
+        <label for="<%= px %>status">Status</label>
+        <select id="<%= px %>status" name="status">
+          <option <%= c.status === 'Active' ? 'selected' : '' %>>Active</option>
+          <option <%= c.status === 'Inactive' ? 'selected' : '' %>>Inactive</option>
+        </select>
+      </div>
+      <div>
+        <label for="<%= px %>agency_charge_type">Agency charges</label>
+        <select id="<%= px %>agency_charge_type" name="agency_charge_type" data-agency-type>
+          <% for (const [v, label] of [['None', 'None'], ['Percent', 'Percentage of manpower'], ['Fixed', 'Fixed amount per invoice']]) { %>
+            <option value="<%= v %>" <%= (c.agency_charge_type || 'None') === v ? 'selected' : '' %>><%= label %></option>
+          <% } %>
+        </select>
+      </div>
+      <div data-agency-value-wrap>
+        <label for="<%= px %>agency_charge_value" data-agency-label>Value</label>
+        <input id="<%= px %>agency_charge_value" type="number" name="agency_charge_value" min="0" step="0.01"
+               value="<%= c.agency_charge_type && c.agency_charge_type !== 'None' ? c.agency_charge_value : '' %>" data-agency-value>
+        <div class="hint">Added to each invoice as a separate line, before tax.</div>
+      </div>
+      <div class="full"><label for="<%= px %>address">Billing address</label><textarea id="<%= px %>address" name="address"><%= c.address || '' %></textarea></div>
+    </div>

@@ -1,0 +1,157 @@
+<%- include('../partials/header') %>
+<div class="page-head no-print">
+  <a href="/invoices">← All invoices</a>
+  <div class="buttons">
+    <% if (inv.status === 'Draft') { %>
+      <a class="btn secondary" href="/invoices/<%= inv.id %>/edit">Edit</a>
+      <form method="post" action="/invoices/<%= inv.id %>/rebuild" class="inline" data-confirm="Rebuild lines and annexure from current assignments, billing rates and attendance? Manual line edits will be replaced.">
+        <%- include('../partials/csrf') %>
+        <button class="btn secondary" type="submit">Rebuild</button>
+      </form>
+    <% } %>
+    <% if (annexure.length) { %><a class="btn secondary" href="/invoices/<%= inv.id %>/annexure.csv">Annexure CSV</a><% } %>
+    <form method="post" action="/invoices/<%= inv.id %>/status" class="inline">
+      <%- include('../partials/csrf') %>
+      <select name="status" style="width: auto" aria-label="Status">
+        <% for (const s of INVOICE_STATUSES) { %><option <%= s === inv.status ? 'selected' : '' %>><%= s %></option><% } %>
+      </select>
+      <button class="btn secondary" type="submit">Update status</button>
+    </form>
+    <button class="btn" onclick="window.print()">Print / Save as PDF</button>
+    <% if (['Draft', 'Cancelled'].includes(inv.status)) { %>
+      <%- include('../partials/delete-button', { action: `/invoices/${inv.id}/delete`, confirmText: `Delete invoice ${inv.number}?` }) %>
+    <% } %>
+  </div>
+</div>
+
+<div class="doc">
+  <div class="doc-head">
+    <div>
+      <img class="doc-logo" src="/static/logo.png" alt="">
+      <h2><%= settings.company_name %></h2>
+      <div class="pre"><%= settings.company_address %></div>
+      <% if (settings.company_gstin) { %><div>GSTIN: <%= settings.company_gstin %></div><% } %>
+      <div class="muted"><%= [settings.company_email, settings.company_phone].filter(Boolean).join(' · ') %></div>
+    </div>
+    <div style="text-align: right">
+      <div class="doc-title"><%= settings.company_gstin ? 'Tax invoice' : 'Invoice' %></div>
+      <div><strong><%= inv.number %></strong></div>
+      <div>Date: <%= f.fmtDate(inv.invoice_date) %></div>
+      <% if (inv.due_date) { %><div>Due: <%= f.fmtDate(inv.due_date) %></div><% } %>
+      <div>Period: <%= f.monthLabel(inv.month) %></div>
+      <% if (inv.status !== 'Sent') { %><div class="no-print" style="margin-top: 4px"><span class="badge <%= inv.status %>"><%= inv.status %></span></div><% } %>
+    </div>
+  </div>
+
+  <div style="margin-bottom: 20px">
+    <div class="muted small-text">Bill To</div>
+    <div><strong><%= inv.customer_name %></strong></div>
+    <% if (inv.contact_person) { %><div>Attn: <%= inv.contact_person %></div><% } %>
+    <div class="pre"><%= inv.customer_address %></div>
+    <% if (inv.customer_gstin) { %><div>GSTIN: <%= inv.customer_gstin %></div><% } %>
+  </div>
+
+  <div class="doc-scroll">
+  <table>
+    <thead><tr><th style="width: 40px">#</th><th>Description</th><th class="num">Qty</th><th class="num">Rate (₹)</th><th class="num">Amount (₹)</th></tr></thead>
+    <tbody>
+      <% lines.forEach((l, i) => { %>
+        <tr>
+          <td><%= i + 1 %></td>
+          <td><%= l.description %></td>
+          <td class="num"><%= f.qty(l.quantity) %><%= l.unit ? ` ${l.unit}${l.quantity === 1 ? '' : 's'}` : '' %></td>
+          <td class="num"><%= f.amount(l.rate) %></td>
+          <td class="num"><%= f.amount(l.amount) %></td>
+        </tr>
+      <% }) %>
+      <% if (!lines.length) { %><tr><td colspan="5" class="empty">No line items.</td></tr><% } %>
+    </tbody>
+  </table>
+  </div>
+
+  <table class="totals">
+    <tr><td>Subtotal</td><td class="num"><%= f.amount(inv.subtotal) %></td></tr>
+    <tr><td><%= settings.tax_label || 'Tax' %> @ <%= inv.tax_rate %>%</td><td class="num"><%= f.amount(inv.tax_amount) %></td></tr>
+    <tr class="grand"><td>Total</td><td class="num"><%= f.money(inv.total) %></td></tr>
+  </table>
+
+  <% if (inv.notes) { %><div style="margin-top: 20px"><div class="muted small-text">Notes</div><div class="pre"><%= inv.notes %></div></div><% } %>
+  <% if (settings.bank_details) { %><div style="margin-top: 20px"><div class="muted small-text">Payment Details</div><div class="pre"><%= settings.bank_details %></div></div><% } %>
+  <% if (annexure.length) { %><p class="muted small-text" style="margin-top: 20px">Resource-wise details are given in the annexure.</p><% } %>
+</div>
+
+<% if (annexure.length) {
+  const groups = [];
+  for (const r of annexure) {
+    const key = `${(r.designation || '').toLowerCase()}|${r.billing_type}|${r.rate}`;
+    let g = groups.find(x => x.key === key);
+    if (!g) groups.push(g = { key, designation: r.designation || 'Consultant', unit: r.unit, rate: r.rate, rows: [], quantity: 0, amount: 0 });
+    g.rows.push(r);
+    g.quantity += r.quantity;
+    g.amount += r.amount;
+  }
+  let n = 0;
+%>
+<div class="doc annexure page-break">
+  <div class="doc-head">
+    <div>
+      <h2>Annexure — Resource details</h2>
+      <div>Invoice <strong><%= inv.number %></strong> · <%= inv.customer_name %></div>
+    </div>
+    <div style="text-align: right">
+      <div>Period: <%= f.monthLabel(inv.month) %></div>
+      <div><%= annexure.length %> assignment<%= annexure.length === 1 ? '' : 's' %></div>
+    </div>
+  </div>
+
+  <div class="doc-scroll">
+  <table>
+    <thead>
+      <tr>
+        <th>#</th><th>Employee</th><th>Role</th><th>Period</th>
+        <th class="num">Days worked</th><th class="num">Leave</th><th class="num" title="Holidays / week off">H/WO</th>
+        <th class="num">Hours</th><th class="num">Billed</th><th class="num">Rate (₹)</th><th class="num">Amount (₹)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% for (const g of groups) { %>
+        <tr class="group-head"><td colspan="11"><%= g.designation %> <span class="muted">— <%= f.amount(g.rate) %> per <%= g.unit %></span></td></tr>
+        <% for (const r of g.rows) { n++; %>
+          <tr>
+            <td><%= n %></td>
+            <td><%= r.employee_name %><br><span class="muted"><%= r.employee_code %></span></td>
+            <td><%= r.role %><% if (r.rate_source === 'Missing') { %><br><span class="badge Draft">No rate</span><% } %></td>
+            <td class="nowrap"><%= f.fmtDate(r.period_from) %> –<br><%= f.fmtDate(r.period_to) %><% if (r.attendance_source === 'Monthly') { %><br><span class="badge">Monthly entry</span><% } %></td>
+            <% const daily = r.attendance_source === 'Daily'; %>
+            <td class="num"><%= f.qty(r.days_worked) %></td>
+            <td class="num"><%= f.qty(r.paid_leave) %></td>
+            <td class="num"><%= daily ? r.holidays + r.week_off : '—' %></td>
+            <td class="num"><%= f.qty(r.hours) %></td>
+            <td class="num"><%= f.qty(r.quantity) %> <%= r.unit %><%= r.quantity === 1 ? '' : 's' %></td>
+            <td class="num"><%= f.amount(r.rate) %></td>
+            <td class="num"><%= f.amount(r.amount) %></td>
+          </tr>
+        <% } %>
+        <tr class="group-total">
+          <td colspan="8"><%= g.designation %> — <%= g.rows.length %> resource<%= g.rows.length === 1 ? '' : 's' %></td>
+          <td class="num"><%= f.qty(g.quantity) %> <%= g.unit %>s</td><td></td>
+          <td class="num"><%= f.amount(g.amount) %></td>
+        </tr>
+      <% } %>
+    </tbody>
+    <tfoot>
+      <tr><td colspan="10">Total (before tax)</td><td class="num"><%= f.amount(annexureTotal) %></td></tr>
+    </tfoot>
+  </table>
+  </div>
+  <p class="muted small-text" style="margin-top: 12px">
+    Days worked are working days (Monday–Friday) in the period less leave; half days count as 0.5. H/WO = holidays and week offs
+    where attendance was recorded day by day. Monthly billing is prorated by calendar days in the period; daily billing counts
+    days worked; hourly billing counts 8 hours per day worked, or the hours recorded where attendance was recorded day by day.
+  </p>
+  <% if (Math.abs(annexureTotal - inv.subtotal) >= 0.01) { %>
+    <p class="flash info no-print">The invoice lines were edited after this annexure was built, so its total (<%= f.money(annexureTotal) %>) differs from the invoice subtotal (<%= f.money(inv.subtotal) %>). Use Rebuild to regenerate both.</p>
+  <% } %>
+</div>
+<% } %>
+<%- include('../partials/footer') %>

@@ -1,0 +1,111 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <h1>Payroll — <%= f.monthLabel(run.month) %> <span class="badge <%= run.status %>"><%= run.status %></span></h1>
+  <div class="buttons">
+    <a class="btn secondary" href="/payroll/<%= run.id %>/export.csv">Export CSV</a>
+    <%- include('_regenerate', { run }) %>
+    <% if (run.status === 'Draft') { %>
+      <form method="post" action="/payroll/<%= run.id %>/finalize" class="inline" data-confirm="Finalize this payroll? Only an administrator will be able to regenerate it.">
+        <%- include('../partials/csrf') %>
+        <button class="btn" type="submit">Finalize</button>
+      </form>
+      <%- include('../partials/delete-button', { action: `/payroll/${run.id}/delete`, confirmText: 'Delete this draft payroll and all its payslips?' }) %>
+    <% } else if (user.role === 'admin') { %>
+      <form method="post" action="/payroll/<%= run.id %>/reopen" class="inline" data-confirm="Reopen this finalized payroll as a draft?">
+        <%- include('../partials/csrf') %>
+        <button class="btn secondary" type="submit">Reopen</button>
+      </form>
+    <% } %>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat"><div class="label">Employees</div><div class="value"><%= payslips.length %></div></div>
+  <div class="stat"><div class="label">Gross earnings</div><div class="value" style="font-size: 18px"><%= f.money(totals.gross) %></div></div>
+  <div class="stat"><div class="label">Deductions</div><div class="value" style="font-size: 18px"><%= f.money(totals.deductions) %></div></div>
+  <div class="stat"><div class="label">Net pay</div><div class="value" style="font-size: 18px"><%= f.money(totals.net) %></div></div>
+  <% if (totals.employer) { %>
+    <div class="stat"><div class="label">Employer contributions</div><div class="value" style="font-size: 18px"><%= f.money(totals.employer) %></div></div>
+    <div class="stat"><div class="label">Cost to company</div><div class="value" style="font-size: 18px"><%= f.money(totals.gross + totals.employer) %></div></div>
+  <% } %>
+</div>
+
+<%
+  const E = components.earnings;
+  const D = components.deductions;
+  const R = components.employer;
+  const amount = (s, kind, name) => {
+    const v = (components.bySlip.get(s.id) || { Earning: {}, Deduction: {}, Employer: {} })[kind][name];
+    return v == null ? '—' : f.amount(v);
+  };
+  const columns = 7 + E.length + 1 + D.length + 2 + (R.length ? R.length + 2 : 0);
+%>
+<p class="muted small-text">Amounts in ₹. “—” means the component isn't in that employee's pay profile.</p>
+<div class="table-wrap">
+  <table class="payroll-grid">
+    <thead>
+      <tr class="group-row">
+        <th colspan="7"></th>
+        <th colspan="<%= E.length + 1 %>" class="group earnings">Earnings</th>
+        <th colspan="<%= D.length + 1 %>" class="group deductions">Deductions</th>
+        <th></th>
+        <% if (R.length) { %><th colspan="<%= R.length + 2 %>" class="group employer">Employer contributions (not deducted)</th><% } %>
+      </tr>
+      <tr>
+        <th class="sticky">Code</th><th class="sticky-2">Employee</th><th>Customer</th><th>Designation</th><th class="num">Monthly gross</th>
+        <th class="num">Paid days</th><th class="num">Leave</th>
+        <% for (const n of E) { %><th class="num earnings"><%= n %></th><% } %>
+        <th class="num earnings total">Gross earned</th>
+        <% for (const n of D) { %><th class="num deductions"><%= n %></th><% } %>
+        <th class="num deductions total">Total deductions</th>
+        <th class="num">Net pay</th>
+        <% if (R.length) { %>
+          <% for (const n of R) { %><th class="num employer"><%= n %></th><% } %>
+          <th class="num employer total">Total employer</th><th class="num employer total">Cost to company</th>
+        <% } %>
+      </tr>
+    </thead>
+    <tbody>
+      <% for (const s of payslips) { %>
+        <tr class="clickable-row" tabindex="0" data-panel-url="/payroll/payslips/<%= s.id %>?panel=1" aria-label="Show payslip for <%= s.employee_name %>">
+          <td class="sticky"><%= s.employee_code %></td>
+          <td class="sticky-2"><a href="/employees/<%= s.employee_id %>" data-panel-open="/employees/<%= s.employee_id %>?panel=1"><%= s.employee_name %></a></td>
+          <td class="wrap-cell"><%= s.customers || '' %><% if (!s.customers) { %><span class="muted">—</span><% } %></td>
+          <td><%= s.designation %></td>
+          <td class="num"><%= f.amount(s.monthly_gross) %></td>
+          <td class="num"><%= f.qty(s.paid_days) %> / <%= s.days_in_month %></td>
+          <td class="num"><%= f.qty(s.leave_days) %></td>
+          <% for (const n of E) { %><td class="num earnings"><%= amount(s, 'Earning', n) %></td><% } %>
+          <td class="num earnings total"><%= f.amount(s.gross_earnings) %></td>
+          <% for (const n of D) { %><td class="num deductions"><%= amount(s, 'Deduction', n) %></td><% } %>
+          <td class="num deductions total"><%= f.amount(s.total_deductions) %></td>
+          <td class="num"><strong><%= f.amount(s.net_pay) %></strong></td>
+          <% if (R.length) { %>
+            <% for (const n of R) { %><td class="num employer"><%= amount(s, 'Employer', n) %></td><% } %>
+            <td class="num employer total"><%= f.amount(s.employer_contributions) %></td>
+            <td class="num employer total"><%= f.amount(s.gross_earnings + s.employer_contributions) %></td>
+          <% } %>
+        </tr>
+      <% } %>
+      <% if (!payslips.length) { %><tr><td colspan="<%= columns %>" class="empty">No payslips — assign pay profiles to employees under <a href="/employee-pay">Employee pay</a>, then regenerate.</td></tr><% } %>
+    </tbody>
+    <% if (payslips.length) { %>
+      <tfoot>
+        <tr>
+          <td class="sticky" colspan="2">Total</td><td colspan="5"></td>
+          <% for (const n of E) { %><td class="num earnings"><%= f.amount(componentTotals.Earning[n]) %></td><% } %>
+          <td class="num earnings total"><%= f.amount(totals.gross) %></td>
+          <% for (const n of D) { %><td class="num deductions"><%= f.amount(componentTotals.Deduction[n]) %></td><% } %>
+          <td class="num deductions total"><%= f.amount(totals.deductions) %></td>
+          <td class="num"><%= f.amount(totals.net) %></td>
+          <% if (R.length) { %>
+            <% for (const n of R) { %><td class="num employer"><%= f.amount(componentTotals.Employer[n]) %></td><% } %>
+            <td class="num employer total"><%= f.amount(totals.employer) %></td>
+            <td class="num employer total"><%= f.amount(totals.gross + totals.employer) %></td>
+          <% } %>
+        </tr>
+      </tfoot>
+    <% } %>
+  </table>
+</div>
+<%- include('../partials/footer') %>

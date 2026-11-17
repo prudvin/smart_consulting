@@ -1,0 +1,7 @@
+<%- include('../partials/header') %>
+<div class="page-head no-print">
+  <a href="/payroll/<%= slip.run_id %>">← Back to payroll</a>
+  <div class="buttons"><button class="btn" onclick="window.print()">Print / Save as PDF</button></div>
+</div>
+<%- include('_payslip-doc') %>
+<%- include('../partials/footer') %>

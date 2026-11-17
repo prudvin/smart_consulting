@@ -1,0 +1,8 @@
+<% if (run.status === 'Draft' || user.role === 'admin') { %>
+  <form method="post" action="/payroll/generate" class="inline"
+        data-confirm="Clear the <%= run.status.toLowerCase() %> payroll for <%= f.monthLabel(run.month) %> and all its payslips, then generate it again from current pay profiles, employee pay and attendance?<%= run.status === 'Finalized' ? ' The new run will be a draft and will need finalizing again.' : '' %>">
+    <%- include('../partials/csrf') %>
+    <input type="hidden" name="month" value="<%= run.month %>">
+    <button class="btn <%= locals.small ? 'small ' : '' %>secondary" type="submit">Regenerate</button>
+  </form>
+<% } %>

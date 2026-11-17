@@ -1,0 +1,27 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <h1>Pay profiles</h1>
+  <div class="buttons"><a class="btn" href="/pay-profiles/new">New pay profile</a></div>
+</div>
+<p class="muted">A pay profile is a salary structure template — the earnings and deductions that make up a monthly gross. Assign profiles to employees under <a href="/employee-pay">Employee pay</a>.</p>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Name</th><th>Description</th><th class="num">Components</th><th class="num">Employees</th><th></th></tr></thead>
+    <tbody>
+      <% for (const p of profiles) { %>
+        <tr>
+          <td><strong><%= p.name %></strong></td>
+          <td><%= p.description %></td>
+          <td class="num"><%= p.component_count %></td>
+          <td class="num"><%= p.employee_count %></td>
+          <td class="actions">
+            <a class="btn small secondary" href="/pay-profiles/<%= p.id %>/edit">Edit</a>
+            <%- include('../partials/delete-button', { action: `/pay-profiles/${p.id}/delete` }) %>
+          </td>
+        </tr>
+      <% } %>
+      <% if (!profiles.length) { %><tr><td colspan="5" class="empty">No pay profiles yet.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+<%- include('../partials/footer') %>

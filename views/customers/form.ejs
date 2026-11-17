@@ -1,0 +1,14 @@
+<%- include('../partials/header') %>
+<h1><%= title %></h1>
+<div class="card">
+  <% if (error) { %><div class="flash error"><%= error %></div><% } %>
+  <form method="post" action="<%= isNew ? '/customers' : `/customers/${c.id}` %>">
+    <%- include('../partials/csrf') %>
+    <%- include('_fields') %>
+    <div class="form-actions">
+      <button class="btn" type="submit"><%= isNew ? 'Add customer' : 'Save' %></button>
+      <a class="btn secondary" href="<%= isNew ? '/customers' : `/customers/${c.id}` %>">Cancel</a>
+    </div>
+  </form>
+</div>
+<%- include('../partials/footer') %>

@@ -1,0 +1,58 @@
+<% const px = locals.idPrefix || ''; %>
+    <div class="form-grid">
+      <% if (locals.lockEmployee) { %>
+        <div>
+          <label>Employee</label>
+          <input type="hidden" name="employee_id" value="<%= a.employee_id %>">
+          <div class="static-field"><%= lockEmployee.name %> <span class="muted">(<%= lockEmployee.code %>)</span></div>
+        </div>
+      <% } else { %>
+        <div>
+          <label for="<%= px %>employee_id">Employee</label>
+          <select id="<%= px %>employee_id" name="employee_id" required>
+            <option value="">Select…</option>
+            <% for (const e of employees) { %><option value="<%= e.id %>" data-designation="<%= e.designation || '' %>" data-department="<%= e.department || '' %>" <%= e.id === a.employee_id ? 'selected' : '' %>><%= e.name %> (<%= e.code %>)</option><% } %>
+          </select>
+        </div>
+        <% } %>
+      <div>
+        <label for="<%= px %>customer_id">Customer</label>
+        <select id="<%= px %>customer_id" name="customer_id" required>
+          <option value="">Select…</option>
+          <% for (const c of customers) { %><option value="<%= c.id %>" <%= c.id === a.customer_id ? 'selected' : '' %>><%= c.name %></option><% } %>
+        </select>
+      </div>
+      <div>
+        <label for="<%= px %>designation">Designation</label>
+        <input id="<%= px %>designation" name="designation" value="<%= a.designation || '' %>" list="<%= px %>designation-options" required data-prefill="designation">
+        <datalist id="<%= px %>designation-options"><% for (const d of designationOptions) { %><option value="<%= d %>"><% } %></datalist>
+      </div>
+      <div>
+        <label for="<%= px %>department">Department</label>
+        <input id="<%= px %>department" name="department" value="<%= a.department || '' %>" list="<%= px %>department-options" data-prefill="department">
+        <datalist id="<%= px %>department-options"><% for (const d of departmentOptions) { %><option value="<%= d %>"><% } %></datalist>
+      </div>
+      <div><label for="<%= px %>role">Role on project</label><input id="<%= px %>role" name="role" value="<%= a.role || '' %>" placeholder="e.g. SAP FICO Consultant"></div>
+      <div><label for="<%= px %>start_date">Start date</label><input id="<%= px %>start_date" type="date" name="start_date" value="<%= a.start_date || '' %>" required></div>
+      <div><label for="<%= px %>end_date">End date <span class="hint">(blank = ongoing)</span></label><input id="<%= px %>end_date" type="date" name="end_date" value="<%= a.end_date || '' %>"></div>
+      <div>
+        <label for="<%= px %>billing_type">Billing</label>
+        <select id="<%= px %>billing_type" name="billing_type" required>
+          <% for (const [type, unit] of Object.entries(BILLING_TYPES)) { %><option value="<%= type %>" <%= (a.billing_type || 'Monthly') === type ? 'selected' : '' %>>Per <%= unit %></option><% } %>
+        </select>
+      </div>
+      <div><label for="<%= px %>rate">Rate (₹)</label><input id="<%= px %>rate" type="number" step="0.01" min="0" name="rate" value="<%= a.rate ?? '' %>" required></div>
+      <% if (isNew) { %>
+        <div class="full">
+          <label class="check"><input type="checkbox" name="close_previous" value="1" <%= a.close_previous === false ? '' : 'checked' %>> End the employee's current assignment(s) the day before this one starts</label>
+          <% if (locals.openAssignments && openAssignments.length) { %>
+            <span class="hint">Currently assigned to: <%= openAssignments.map(o => `${o.customer_name} (since ${f.fmtDate(o.start_date)})`).join(', ') %>. Untick to keep them, e.g. for someone shared between customers.</span>
+          <% } else { %>
+            <span class="hint">Untick to keep existing assignments running, e.g. for someone shared between customers.</span>
+          <% } %>
+        </div>
+      <% } %>
+      <div class="full"><label for="<%= px %>notes">Notes</label><textarea id="<%= px %>notes" name="notes"><%= a.notes || '' %></textarea></div>
+    </div>
+    <p class="hint">The customer is invoiced at this rate: <strong>per month</strong> is prorated for part months,
+      <strong>per day</strong> bills days worked, and <strong>per hour</strong> bills hours worked (8 per day worked).</p>

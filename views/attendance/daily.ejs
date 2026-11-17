@@ -1,0 +1,53 @@
+<%- include('../partials/header') %>
+<%- include('_tabs', { tab: 'daily', tabMonth: date.slice(0, 7) }) %>
+<div class="page-head">
+  <h1>Attendance — <%= f.weekday(date) %>, <%= f.fmtDate(date) %></h1>
+  <div class="buttons">
+    <a class="btn secondary" href="/attendance/daily?date=<%= prev %>">← Previous day</a>
+    <a class="btn secondary" href="/attendance/daily?date=<%= next %>">Next day →</a>
+  </div>
+</div>
+<% if (entries.size) { %>
+  <div class="flash info"><%= entries.size %> employee(s) have a <a href="/attendance/month?month=<%= date.slice(0, 7) %>">monthly entry</a> for <%= f.monthLabel(date.slice(0, 7)) %>; their daily marks are kept but not used for payroll or invoicing.</div>
+<% } %>
+
+<form class="filters" method="get">
+  <div><label for="date">Date</label><input id="date" type="date" name="date" value="<%= date %>"></div>
+  <div><button class="btn secondary" type="submit">Go</button></div>
+</form>
+
+<form method="post" action="/attendance">
+  <%- include('../partials/csrf') %>
+  <input type="hidden" name="date" value="<%= date %>">
+  <div class="filters">
+    <button type="button" class="btn small secondary" data-mark-all="P" data-only-empty="1">Mark unmarked as Present</button>
+    <button type="button" class="btn small secondary" data-mark-all="H">Mark all as Holiday</button>
+    <button type="button" class="btn small secondary" data-mark-all="WO">Mark all as Week off</button>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Code</th><th>Employee</th><th>Designation</th><th style="width: 180px">Status</th><th style="width: 110px">Hours</th><th>Note</th></tr></thead>
+      <tbody>
+        <% for (const e of employees) { const r = records.get(e.id) || {}; %>
+          <tr>
+            <td><%= e.code %></td>
+            <td><%= e.name %><% if (entries.has(e.id)) { %> <span class="badge">monthly entry</span><% } %></td>
+            <td><%= e.designation %></td>
+            <td>
+              <select name="rows[e<%= e.id %>][status]" data-att>
+                <option value="">— not marked —</option>
+                <% for (const [code, a] of Object.entries(ATTENDANCE).filter(([c, x]) => !x.legacy || r.status === c)) { %><option value="<%= code %>" <%= r.status === code ? 'selected' : '' %>><%= a.label %></option><% } %>
+              </select>
+            </td>
+            <td><input type="number" name="rows[e<%= e.id %>][hours]" value="<%= r.hours ?? '' %>" min="0" max="24" step="0.25" placeholder="auto"></td>
+            <td><input name="rows[e<%= e.id %>][note]" value="<%= r.note || '' %>"></td>
+          </tr>
+        <% } %>
+        <% if (!employees.length) { %><tr><td colspan="6" class="empty">No active employees on this date.</td></tr><% } %>
+      </tbody>
+    </table>
+  </div>
+  <p class="hint">Leave hours blank to use the default (8 for Present, 4 for Half day). Leave, Absent and Half day (as half a day) count as leave, which is unpaid; Present and Half day are billable to customers.</p>
+  <% if (employees.length) { %><div class="form-actions"><button class="btn" type="submit">Save attendance</button></div><% } %>
+</form>
+<%- include('../partials/footer') %>

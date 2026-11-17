@@ -1,0 +1,90 @@
+<%- include('../partials/header') %>
+<h1><%= title %></h1>
+<% function componentRow(i, c) { %>
+  <tr>
+    <td><input name="components[<%= i %>][name]" value="<%= c.name || '' %>" placeholder="e.g. HRA"></td>
+    <td>
+      <select name="components[<%= i %>][kind]">
+        <% for (const [k, label] of Object.entries(COMPONENT_KINDS)) { %><option value="<%= k %>" <%= c.kind === k ? 'selected' : '' %>><%= label %></option><% } %>
+      </select>
+    </td>
+    <td>
+      <select name="components[<%= i %>][calc]">
+        <% for (const [k, label] of Object.entries(COMPONENT_CALCS)) { %><option value="<%= k %>" <%= c.calc === k ? 'selected' : '' %>><%= label %></option><% } %>
+      </select>
+    </td>
+    <td><input type="number" name="components[<%= i %>][value]" value="<%= c.value ?? '' %>" step="0.01" min="0"></td>
+    <td class="actions"><button type="button" class="btn small secondary" data-remove-row>Remove</button></td>
+  </tr>
+<% } %>
+<div class="card">
+  <% if (error) { %><div class="flash error"><%= error %></div><% } %>
+  <form method="post" action="<%= isNew ? '/pay-profiles' : `/pay-profiles/${p.id}` %>">
+    <%- include('../partials/csrf') %>
+    <div class="form-grid">
+      <div><label for="name">Profile name</label><input id="name" name="name" value="<%= p.name || '' %>" required placeholder="e.g. Senior Consultant"></div>
+      <div class="full"><label for="description">Description</label><input id="description" name="description" value="<%= p.description || '' %>"></div>
+    </div>
+
+    <h2>Components</h2>
+    <p class="hint">
+      Components are calculated in order. <strong>% of basic</strong> uses the earning named “Basic”.
+      <strong>Balance of gross</strong> (one earning only) takes whatever remains of the monthly gross.
+      Earnings are prorated by paid days; percentage deductions apply to prorated amounts; fixed deductions apply in full.
+      <strong>Telangana PT slab</strong> (deductions only; value not used) applies the
+      <a href="https://www.tgct.gov.in/tgportal/AllActs/APPT/APPTSchedule.aspx" target="_blank" rel="noopener">Telangana professional tax schedule</a>
+      to the gross earned in the month: up to ₹15,000 nil, ₹15,001–₹20,000 ₹150, above ₹20,000 ₹200.
+      Employees marked PT-exempt pay nothing.
+    </p>
+    <p class="hint">
+      <strong>EPF</strong>: value % of PF wages, i.e. the earned Basic, capped at the PF wage ceiling in Settings (₹15,000 by default):
+      a basic above ₹15,000 is counted as ₹15,000. Rounded to the nearest rupee. Use 12 as a deduction (employee share) and 13 as an employer contribution
+      (12% + 0.5% admin + 0.5% EDLI).
+      <strong>ESI</strong>: value % of the gross earned, rounded up to the next rupee, only for employees whose monthly gross is
+      ₹21,000 or less. Use 0.75 as a deduction and 3.25 as an employer contribution.
+      <strong>Employer contributions</strong> are company costs: they appear on payslips and in payroll but don't reduce net pay.
+    </p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Name</th><th style="width: 190px">Type</th><th style="width: 190px">Calculation</th><th style="width: 140px">Value</th><th></th></tr></thead>
+        <tbody id="components"><% p.components.forEach((c, i) => componentRow(i, c)); %></tbody>
+      </table>
+    </div>
+    <template id="component-tpl"><% componentRow('__i__', { kind: 'Earning', calc: 'Fixed' }); %></template>
+    <button type="button" class="btn small secondary" data-add-row="components" data-template="component-tpl">+ Add component</button>
+
+    <div class="form-actions">
+      <button class="btn" type="submit"><%= isNew ? 'Create profile' : 'Save' %></button>
+      <a class="btn secondary" href="/pay-profiles">Cancel</a>
+    </div>
+  </form>
+</div>
+
+<% if (sample) { %>
+  <div class="card" style="max-width: 560px">
+    <h2>Example: monthly gross of <%= f.money(sample.gross) %> (full month)</h2>
+    <form method="get" class="filters">
+      <div><label for="sample_gross">Try another monthly gross</label><input id="sample_gross" type="number" name="sample_gross" min="1" step="1" value="<%= sample.gross %>"></div>
+      <div><button class="btn small secondary" type="submit">Show</button></div>
+    </form>
+    <table>
+      <tbody>
+        <% for (const l of sample.lines) { %>
+          <tr><td><%= l.name %></td><td class="muted"><%= COMPONENT_KINDS[l.kind] %></td><td class="num"><%= l.kind === 'Deduction' ? '−' : '' %><%= f.amount(l.amount) %></td></tr>
+        <% } %>
+      </tbody>
+      <tfoot>
+        <tr><td colspan="2">Gross earnings</td><td class="num"><%= f.amount(sample.gross) %></td></tr>
+        <tr><td colspan="2">Deductions</td><td class="num">−<%= f.amount(sample.deductions) %></td></tr>
+        <tr><td colspan="2">Net pay</td><td class="num"><%= f.money(sample.net) %></td></tr>
+        <% if (sample.employer) { %>
+          <tr><td colspan="2">Employer contributions</td><td class="num"><%= f.amount(sample.employer) %></td></tr>
+          <tr><td colspan="2">Cost to company</td><td class="num"><%= f.money(sample.ctc) %></td></tr>
+        <% } %>
+      </tfoot>
+    </table>
+    <p class="hint">PF wages <%= f.money(sample.pfWages) %> · ESI <%= sample.esiApplies ? 'applies' : 'does not apply (gross above ₹21,000)' %>.
+      Saved values only — save the form to refresh this example.</p>
+  </div>
+<% } %>
+<%- include('../partials/footer') %>

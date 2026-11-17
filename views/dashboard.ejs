@@ -1,0 +1,59 @@
+<%- include('partials/header') %>
+<div class="page-head">
+  <h1>Dashboard</h1>
+  <div class="buttons">
+    <a class="btn" href="/attendance/month?month=<%= month %>">Enter monthly attendance</a>
+  </div>
+</div>
+
+<div class="stats">
+  <a class="stat" href="/employees"><div class="label">Active employees</div><div class="value"><%= stats.employees %></div></a>
+  <a class="stat" href="/customers"><div class="label">Active customers</div><div class="value"><%= stats.customers %></div></a>
+  <a class="stat" href="/employees"><div class="label">Current assignments</div><div class="value"><%= stats.assignments %></div><div class="sub"><%= bench.length %> on bench</div></a>
+  <a class="stat" href="/attendance/month?month=<%= month %>"><div class="label">Attendance <%= f.monthLabel(month) %></div><div class="value"><%= stats.monthlyEntered %> / <%= stats.employees %></div><div class="sub">entered · <%= f.qty(stats.leaveDays) %> leave days</div></a>
+  <a class="stat" href="/payroll"><div class="label">Payroll <%= f.monthLabel(month) %></div><div class="value" style="font-size: 18px"><%= stats.payroll ? stats.payroll.status : 'Not run' %></div></a>
+  <a class="stat" href="/invoices?status=Sent"><div class="label">Outstanding invoices</div><div class="value" style="font-size: 18px"><%= f.money(stats.outstanding.total) %></div><div class="sub"><%= stats.outstanding.n %> sent, unpaid</div></a>
+</div>
+
+<div class="two-col">
+  <div>
+    <h2>Recent invoices</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Number</th><th>Customer</th><th>Month</th><th class="num">Total</th><th>Status</th></tr></thead>
+        <tbody>
+          <% for (const i of recentInvoices) { %>
+            <tr>
+              <td><a href="/invoices/<%= i.id %>"><%= i.number %></a></td>
+              <td><%= i.customer_name %></td>
+              <td><%= f.monthLabel(i.month) %></td>
+              <td class="num"><%= f.money(i.total) %></td>
+              <td><span class="badge <%= i.status %>"><%= i.status %></span></td>
+            </tr>
+          <% } %>
+          <% if (!recentInvoices.length) { %><tr><td colspan="5" class="empty">No invoices yet.</td></tr><% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div>
+    <h2>On bench (no current assignment)</h2>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Code</th><th>Name</th><th>Designation</th><th></th></tr></thead>
+        <tbody>
+          <% for (const e of bench) { %>
+            <tr>
+              <td><%= e.code %></td>
+              <td><a href="/employees/<%= e.id %>" data-panel-open="/employees/<%= e.id %>?panel=1"><%= e.name %></a></td>
+              <td><%= e.designation %></td>
+              <td class="actions"><a class="btn small secondary" href="/assignments/new?employee_id=<%= e.id %>">Assign</a></td>
+            </tr>
+          <% } %>
+          <% if (!bench.length) { %><tr><td colspan="4" class="empty">Everyone is assigned.</td></tr><% } %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<%- include('partials/footer') %>

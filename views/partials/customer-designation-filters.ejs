@@ -1,0 +1,22 @@
+<%
+  // Inputs: tbodyId; options: { customers: [...], designations: [...] }.
+%>
+<div class="filters">
+  <div>
+    <label for="<%= tbodyId %>-customer">Customer</label>
+    <select id="<%= tbodyId %>-customer" data-filter-for="<%= tbodyId %>" data-filter-attr="customers">
+      <option value="">All</option>
+      <% for (const c of options.customers) { %><option value="<%= c %>"><%= c %></option><% } %>
+      <option value="__none__">No customer</option>
+    </select>
+  </div>
+  <div>
+    <label for="<%= tbodyId %>-designation">Designation</label>
+    <select id="<%= tbodyId %>-designation" data-filter-for="<%= tbodyId %>" data-filter-attr="designation">
+      <option value="">All</option>
+      <% for (const d of options.designations) { %><option value="<%= d %>"><%= d %></option><% } %>
+    </select>
+  </div>
+  <div><button type="button" class="btn secondary" data-filter-clear="<%= tbodyId %>">Clear</button></div>
+  <div class="muted small-text" data-filter-count="<%= tbodyId %>"></div>
+</div>

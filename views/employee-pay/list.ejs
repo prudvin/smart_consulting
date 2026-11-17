@@ -1,0 +1,117 @@
+<%- include('../partials/header') %>
+<h1>Employee pay</h1>
+
+<div class="filters">
+  <div>
+    <label for="pay-search">Search</label>
+    <input id="pay-search" type="search" placeholder="Name, code, designation, customer, pay profile…" class="search-wide"
+           data-filter-table="pay-rows" autocomplete="off">
+  </div>
+  <div>
+    <label for="pay-designation">Designation</label>
+    <select id="pay-designation" data-filter-for="pay-rows" data-filter-attr="designation">
+      <option value="">All</option>
+      <% for (const d of filterOptions.designations) { %><option value="<%= d %>"><%= d %></option><% } %>
+    </select>
+  </div>
+  <div>
+    <label for="pay-customer">Customer</label>
+    <select id="pay-customer" data-filter-for="pay-rows" data-filter-attr="customers">
+      <option value="">All</option>
+      <% for (const c of filterOptions.customers) { %><option value="<%= c %>"><%= c %></option><% } %>
+      <option value="__bench__">On bench</option>
+    </select>
+  </div>
+  <div>
+    <label for="pay-profile">Pay profile</label>
+    <select id="pay-profile" data-filter-for="pay-rows" data-filter-attr="profile">
+      <option value="">All</option>
+      <% for (const pr of filterOptions.profiles) { %><option value="<%= pr %>"><%= pr %></option><% } %>
+      <option value="__none__">No pay profile</option>
+    </select>
+  </div>
+  <div><button type="button" class="btn secondary" data-filter-clear="pay-rows">Clear</button></div>
+  <div class="muted small-text" data-filter-count="pay-rows"></div>
+</div>
+
+<div class="table-wrap">
+  <table data-sortable="pay-rows">
+    <thead>
+      <tr>
+        <th aria-sort="ascending"><button type="button" class="sort-btn" data-sort-col="0" data-sort-type="text">Code</button></th>
+        <th><button type="button" class="sort-btn" data-sort-col="1" data-sort-type="text">Employee</button></th>
+        <th><button type="button" class="sort-btn" data-sort-col="2" data-sort-type="text">Designation</button></th>
+        <th><button type="button" class="sort-btn" data-sort-col="3" data-sort-type="text">Customer</button></th>
+        <th><button type="button" class="sort-btn" data-sort-col="4" data-sort-type="text">Pay profile</button></th>
+        <th class="num"><button type="button" class="sort-btn" data-sort-col="5" data-sort-type="num">Monthly gross</button></th>
+        <th><button type="button" class="sort-btn" data-sort-col="6" data-sort-type="text">Since</button></th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody id="pay-rows">
+      <% for (const e of employees) { const bench = !e.customers && e.status === 'Active'; %>
+        <tr data-designation="<%= e.designation || '' %>"
+            data-customers="<%= e.customers ? e.customers.split(', ').join('|') : (bench ? '__bench__' : '') %>"
+            data-profile="<%= e.profile_name || '__none__' %>">
+          <td><%= e.code %></td>
+          <td data-sort="<%= e.name %>"><a href="/employees/<%= e.id %>" data-panel-open="/employees/<%= e.id %>?panel=1"><%= e.name %></a><% if (e.status === 'Inactive') { %> <span class="badge Inactive">Inactive</span><% } %></td>
+          <td><%= e.designation %></td>
+          <td data-sort="<%= e.customers || (bench ? '~On bench' : '~') %>"><%= e.customers || '' %><% if (bench) { %><span class="muted">On bench</span><% } %></td>
+          <% if (e.profile_name) { %>
+            <td><%= e.profile_name %></td>
+            <td class="num" data-sort="<%= e.monthly_gross %>"><%= f.money(e.monthly_gross) %></td>
+            <td data-sort="<%= e.effective_from %>"><%= f.fmtDate(e.effective_from) %></td>
+          <% } else { %>
+            <td data-sort="~"><span class="badge Draft">No pay profile</span></td>
+            <td class="num muted" data-sort="">—</td>
+            <td class="muted" data-sort="~">—</td>
+          <% } %>
+          <td class="actions">
+            <% if (e.next_from) { %>
+              <span class="badge future" title="<%= e.next_profile %>, <%= f.money(e.next_gross) %> from <%= f.fmtDate(e.next_from) %>">Changes <%= f.fmtDate(e.next_from) %></span>
+            <% } %>
+            <button type="button" class="icon-btn" data-change-pay
+                    data-employee-id="<%= e.id %>" data-employee-name="<%= e.name %>"
+                    data-profile-id="<%= e.profile_id || '' %>" data-gross="<%= e.monthly_gross || '' %>"
+                    title="Change pay" aria-label="Change pay for <%= e.name %>">
+              <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zm17.71-10.21a1 1 0 0 0 0-1.41l-2.34-2.34a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+            </button>
+          </td>
+        </tr>
+      <% } %>
+      <% if (!employees.length) { %><tr><td colspan="8" class="empty">No employees yet.</td></tr><% } %>
+      <tr data-filter-empty hidden><td colspan="8" class="empty">No employees match your search.</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<dialog id="change-pay" class="modal" aria-labelledby="change-pay-title">
+  <form method="post" action="/employee-pay/change">
+    <%- include('../partials/csrf') %>
+    <input type="hidden" name="employee_id">
+    <h2 id="change-pay-title">Change pay — <span data-name></span></h2>
+    <% if (!profiles.length) { %>
+      <div class="flash info">Create a <a href="/pay-profiles/new">pay profile</a> first.</div>
+    <% } %>
+    <div class="form-grid" style="grid-template-columns: 1fr">
+      <div>
+        <label for="cp-profile">Pay profile</label>
+        <select id="cp-profile" name="profile_id" required>
+          <option value="">Select…</option>
+          <% for (const p of profiles) { %><option value="<%= p.id %>"><%= p.name %></option><% } %>
+        </select>
+      </div>
+      <div><label for="cp-gross">Monthly gross (₹)</label><input id="cp-gross" type="number" name="monthly_gross" min="1" step="0.01" required></div>
+      <div>
+        <label for="cp-from">Effective from</label>
+        <input id="cp-from" type="date" name="effective_from" value="<%= defaultEffective %>" required>
+        <span class="hint">Payroll from this date uses the new pay; earlier months keep the old pay.</span>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn" type="submit">Save</button>
+      <button class="btn secondary" type="button" data-close-dialog>Cancel</button>
+    </div>
+  </form>
+</dialog>
+<%- include('../partials/footer') %>

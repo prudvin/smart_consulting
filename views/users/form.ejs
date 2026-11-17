@@ -1,0 +1,39 @@
+<%- include('../partials/header') %>
+<h1><%= title %></h1>
+<div class="card" style="max-width: 640px">
+  <% if (error) { %><div class="flash error"><%= error %></div><% } %>
+  <form method="post" action="<%= isNew ? '/users' : `/users/${u.id}` %>">
+    <%- include('../partials/csrf') %>
+    <div class="form-grid">
+      <div>
+        <label for="username">Username</label>
+        <input id="username" name="username" value="<%= u.username || '' %>" <%= isNew ? 'required' : 'disabled' %> pattern="[A-Za-z0-9._\-]{3,32}" autocomplete="off">
+      </div>
+      <div>
+        <label for="name">Full name</label>
+        <input id="name" name="name" value="<%= u.name || '' %>" required>
+      </div>
+      <div>
+        <label for="role">Role</label>
+        <select id="role" name="role">
+          <option value="staff" <%= u.role === 'staff' ? 'selected' : '' %>>Staff</option>
+          <option value="admin" <%= u.role === 'admin' ? 'selected' : '' %>>Administrator</option>
+        </select>
+      </div>
+      <div>
+        <label for="password"><%= isNew ? 'Password' : 'Reset password' %> <span class="hint"><%= isNew ? '(at least 8 characters)' : '(leave blank to keep)' %></span></label>
+        <input id="password" type="password" name="password" <%= isNew ? 'required' : '' %> minlength="8" autocomplete="new-password">
+      </div>
+      <% if (!isNew) { %>
+        <div class="full">
+          <label class="check"><input type="checkbox" name="active" value="1" <%= u.active ? 'checked' : '' %>> Active (can sign in)</label>
+        </div>
+      <% } %>
+    </div>
+    <div class="form-actions">
+      <button class="btn" type="submit"><%= isNew ? 'Add user' : 'Save' %></button>
+      <a class="btn secondary" href="/users">Cancel</a>
+    </div>
+  </form>
+</div>
+<%- include('../partials/footer') %>

@@ -1,0 +1,34 @@
+<%- include('partials/header') %>
+<h1>Settings</h1>
+<div class="card">
+  <% if (error) { %><div class="flash error"><%= error %></div><% } %>
+  <form method="post" action="/settings">
+    <%- include('partials/csrf') %>
+    <h2>Company</h2>
+    <div class="form-grid">
+      <div><label for="company_name">Company name</label><input id="company_name" name="company_name" value="<%= s.company_name %>" required></div>
+      <div><label for="company_gstin">GSTIN</label><input id="company_gstin" name="company_gstin" value="<%= s.company_gstin %>"></div>
+      <div><label for="company_email">Email</label><input id="company_email" type="email" name="company_email" value="<%= s.company_email %>"></div>
+      <div><label for="company_phone">Phone</label><input id="company_phone" name="company_phone" value="<%= s.company_phone %>"></div>
+      <div class="full"><label for="company_address">Address</label><textarea id="company_address" name="company_address"><%= s.company_address %></textarea></div>
+    </div>
+    <h2>Payroll</h2>
+    <div class="form-grid">
+      <div>
+        <label for="pf_wage_ceiling">PF wage ceiling (₹ per month)</label>
+        <input id="pf_wage_ceiling" type="number" step="1" min="0" name="pf_wage_ceiling" value="<%= s.pf_wage_ceiling %>">
+        <span class="hint">EPF is calculated on Basic up to this amount (statutory ceiling ₹15,000). Enter 0 to calculate on the full Basic.</span>
+      </div>
+    </div>
+    <h2>Invoicing</h2>
+    <div class="form-grid">
+      <div><label for="invoice_prefix">Invoice number prefix <span class="hint">(e.g. INV- → INV-202610-001)</span></label><input id="invoice_prefix" name="invoice_prefix" value="<%= s.invoice_prefix %>"></div>
+      <div><label for="tax_label">Tax label</label><input id="tax_label" name="tax_label" value="<%= s.tax_label %>"></div>
+      <div><label for="default_tax_rate">Default tax rate (%)</label><input id="default_tax_rate" type="number" step="0.01" min="0" max="100" name="default_tax_rate" value="<%= s.default_tax_rate %>"></div>
+      <div><label for="payment_terms_days">Payment terms (days)</label><input id="payment_terms_days" type="number" step="1" min="0" name="payment_terms_days" value="<%= s.payment_terms_days %>"></div>
+      <div class="full"><label for="bank_details">Bank / payment details <span class="hint">(printed on invoices)</span></label><textarea id="bank_details" name="bank_details"><%= s.bank_details %></textarea></div>
+    </div>
+    <div class="form-actions"><button class="btn" type="submit">Save settings</button></div>
+  </form>
+</div>
+<%- include('partials/footer') %>

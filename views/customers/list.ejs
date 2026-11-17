@@ -1,0 +1,43 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <h1>Customers</h1>
+  <div class="buttons"><a class="btn" href="/customers/new">Add customer</a></div>
+</div>
+<form class="filters" method="get">
+  <div><label for="q">Search</label><input id="q" name="q" value="<%= q %>" placeholder="Name, contact, email…"></div>
+  <div>
+    <label for="status">Status</label>
+    <select id="status" name="status">
+      <option value="Active" <%= status === 'Active' ? 'selected' : '' %>>Active</option>
+      <option value="Inactive" <%= status === 'Inactive' ? 'selected' : '' %>>Inactive</option>
+      <option value="" <%= status === '' ? 'selected' : '' %>>All</option>
+    </select>
+  </div>
+  <div><button class="btn secondary" type="submit">Filter</button></div>
+</form>
+<div class="table-wrap">
+  <table class="stack-table">
+    <thead><tr><th>Name</th><th>Contact</th><th>Email</th><th>Phone</th><th>GSTIN</th><th class="num">Agency charges</th><th class="num">Consultants</th><th>Status</th><th></th></tr></thead>
+    <tbody>
+      <% for (const c of customers) { %>
+        <tr class="clickable-row" tabindex="0" data-panel-url="/customers/<%= c.id %>?panel=1" aria-label="Show details for <%= c.name %>">
+          <td class="cell-title"><%= c.name %></td>
+          <td data-label="Contact"><%= c.contact_person %></td>
+          <td data-label="Email"><% if (c.email) { %><a href="mailto:<%= c.email %>"><%= c.email %></a><% } %></td>
+          <td data-label="Phone"><% if (c.phone) { %><a href="tel:<%= c.phone.replace(/[^\d+]/g, '') %>"><%= c.phone %></a><% } %></td>
+          <td data-label="GSTIN"><%= c.gstin %></td>
+          <td class="num" data-label="Agency charges"><%= c.agency_charge_type === 'Percent' ? `${f.qty(c.agency_charge_value)}%` : c.agency_charge_type === 'Fixed' ? f.money(c.agency_charge_value) : '' %><% if (c.agency_charge_type !== 'Percent' && c.agency_charge_type !== 'Fixed') { %><span class="muted">—</span><% } %></td>
+          <td class="num" data-label="Consultants"><a href="/employees?status=&customer=<%= encodeURIComponent(c.name) %>"><%= c.active_assignments %></a></td>
+          <td class="cell-badge"><span class="badge <%= c.status %>"><%= c.status %></span></td>
+          <td class="actions cell-actions">
+            <a class="btn small secondary" href="/invoices?customer_id=<%= c.id %>">Invoices</a>
+            <a class="btn small secondary" href="/customers/<%= c.id %>/edit">Edit</a>
+            <%- include('../partials/delete-button', { action: `/customers/${c.id}/delete`, confirmText: `Delete ${c.name}? Their assignments will also be deleted.` }) %>
+          </td>
+        </tr>
+      <% } %>
+      <% if (!customers.length) { %><tr><td colspan="9" class="empty">No customers found.</td></tr><% } %>
+    </tbody>
+  </table>
+</div>
+<%- include('../partials/footer') %>

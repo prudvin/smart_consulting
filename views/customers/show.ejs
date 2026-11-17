@@ -1,0 +1,10 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <h1><%= c.name %> <span class="badge <%= c.status %>"><%= c.status %></span></h1>
+  <div class="buttons">
+    <a class="btn secondary" href="/customers/<%= c.id %>/edit">Edit</a>
+    <%- include('../partials/delete-button', { action: `/customers/${c.id}/delete`, confirmText: `Delete ${c.name}? Their assignments will also be deleted.` }) %>
+  </div>
+</div>
+<%- include('_details') %>
+<%- include('../partials/footer') %>

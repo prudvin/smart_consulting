@@ -1,0 +1,29 @@
+<%- include('../partials/header') %>
+<div class="page-head">
+  <h1>Users</h1>
+  <div class="buttons"><a class="btn" href="/users/new">Add user</a></div>
+</div>
+<p class="muted">People who can sign in to this application. Administrators can also manage users and settings.</p>
+<div class="table-wrap">
+  <table>
+    <thead><tr><th>Username</th><th>Name</th><th>Role</th><th>Status</th><th>Created</th><th></th></tr></thead>
+    <tbody>
+      <% for (const u of users) { %>
+        <tr>
+          <td><%= u.username %><% if (u.id === user.id) { %> <span class="muted">(you)</span><% } %></td>
+          <td><%= u.name %></td>
+          <td><span class="badge <%= u.role %>"><%= u.role %></span></td>
+          <td><span class="badge <%= u.active ? 'Active' : 'Inactive' %>"><%= u.active ? 'Active' : 'Disabled' %></span></td>
+          <td><%= f.fmtDate(u.created_at.slice(0, 10)) %></td>
+          <td class="actions">
+            <a class="btn small secondary" href="/users/<%= u.id %>/edit">Edit</a>
+            <% if (u.id !== user.id) { %>
+              <%- include('../partials/delete-button', { action: `/users/${u.id}/delete`, label: 'Remove', confirmText: `Remove user ${u.username}? They will no longer be able to sign in.` }) %>
+            <% } %>
+          </td>
+        </tr>
+      <% } %>
+    </tbody>
+  </table>
+</div>
+<%- include('../partials/footer') %>
