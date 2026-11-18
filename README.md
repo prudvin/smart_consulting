@@ -178,9 +178,8 @@ Draft → Sent → Paid (or Cancelled). Invoices print or save as PDF from the b
 
 ```sh
 npm run seed   # load demo customers, employees, assignments, attendance and pay (empty database only)
-npm start      # runs the app and restarts it automatically when code changes
-npm run start:once  # runs the app without watching for changes (e.g. on a server)
-npm run dev    # same as npm start
+npm start      # runs the app (use this on a server)
+npm run dev    # runs the app and restarts it automatically when code changes (development)
 npm test       # payroll and invoice calculation tests
 ```
 
