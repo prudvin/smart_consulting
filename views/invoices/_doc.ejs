@@ -1,0 +1,190 @@
+<div class="doc">
+  <div class="doc-head">
+    <div>
+      <img class="doc-logo" src="/static/logo.png" alt="">
+      <h2><%= settings.company_name %></h2>
+      <div class="pre"><%= settings.company_address %></div>
+      <% if (settings.company_gstin) { %><div>GSTIN: <%= settings.company_gstin %></div><% } %>
+      <div class="muted"><%= [settings.company_email, settings.company_phone].filter(Boolean).join(' · ') %></div>
+    </div>
+    <div style="text-align: right">
+      <div class="doc-title"><%= settings.company_gstin ? 'Tax invoice' : 'Invoice' %></div>
+      <div><strong><%= inv.number %></strong></div>
+      <div>Date: <%= f.fmtDate(inv.invoice_date) %></div>
+      <% if (inv.due_date) { %><div>Due: <%= f.fmtDate(inv.due_date) %></div><% } %>
+      <div>Period: <%= f.monthLabel(inv.month) %></div>
+      <% if (inv.status !== 'Sent') { %><div class="no-print" style="margin-top: 4px"><span class="badge <%= inv.status %>"><%= inv.status %></span></div><% } %>
+    </div>
+  </div>
+
+  <div style="margin-bottom: 20px">
+    <div class="muted small-text">Bill To</div>
+    <div><strong><%= inv.customer_name %></strong></div>
+    <% if (inv.contact_person) { %><div>Attn: <%= inv.contact_person %></div><% } %>
+    <div class="pre"><%= inv.customer_address %></div>
+    <% if (inv.customer_gstin) { %><div>GSTIN: <%= inv.customer_gstin %></div><% } %>
+  </div>
+
+  <div class="doc-scroll">
+  <table>
+    <thead><tr><th style="width: 40px">#</th><th>Description</th><th class="num">Qty</th><th class="num">Amount (₹)</th></tr></thead>
+    <tbody>
+      <% lines.forEach((l, i) => { %>
+        <tr>
+          <td><%= i + 1 %></td>
+          <td><%= l.description %></td>
+          <td class="num"><%= f.qty(l.quantity) %></td>
+          <td class="num"><%= f.amount(l.amount) %></td>
+        </tr>
+      <% }) %>
+      <% if (!lines.length) { %><tr><td colspan="4" class="empty">No line items.</td></tr><% } %>
+    </tbody>
+  </table>
+  </div>
+
+  <table class="totals">
+    <tr><td>Subtotal</td><td class="num"><%= f.amount(inv.subtotal) %></td></tr>
+    <% if (inv.agency_amount) { %><tr><td>Agency charges<%= inv.agency_charge_type === 'Percent' ? ` @ ${inv.agency_charge_value}%` : '' %></td><td class="num"><%= f.amount(inv.agency_amount) %></td></tr><% } %>
+    <tr><td>CGST @ <%= inv.cgst_rate %>%</td><td class="num"><%= f.amount(inv.cgst_amount) %></td></tr>
+    <tr><td>SGST @ <%= inv.sgst_rate %>%</td><td class="num"><%= f.amount(inv.sgst_amount) %></td></tr>
+    <tr class="grand"><td>Total</td><td class="num"><%= f.money(inv.total) %></td></tr>
+    <tr class="in-words"><td colspan="2"><span class="muted">Amount in words:</span> <%= f.amountInWords(inv.total) %></td></tr>
+  </table>
+
+  <% if (inv.notes) { %><div style="margin-top: 20px"><div class="muted small-text">Notes</div><div class="pre"><%= inv.notes %></div></div><% } %>
+  <% if (settings.bank_details) { %><div style="margin-top: 20px"><div class="muted small-text">Payment Details</div><div class="pre"><%= settings.bank_details %></div></div><% } %>
+  <% if (annexure.length) { %><p class="muted small-text" style="margin-top: 20px">Resource-wise details are given in the annexure.</p><% } %>
+
+  <div class="signature">
+    <div>For <strong><%= settings.company_name %></strong></div>
+    <div class="signature-space"></div>
+    <div class="signature-line">Authorised Signatory</div>
+  </div>
+</div>
+
+<% if (annexure.length) {
+  // Payroll columns: earnings and gross, deductions and their total, net pay, then employer contributions and their total.
+  const ofKind = k => payroll.columns.filter(c => c.kind === k);
+  const earn = ofKind('Earning'), ded = ofKind('Deduction'), emp = ofKind('Employer');
+  const hasPay = payroll.slips.size > 0;
+  const payKeys = !hasPay ? [] : [...earn.map(c => c.key), 'gross_earnings', ...ded.map(c => c.key), 'total_deductions', 'net_pay',
+    ...emp.map(c => c.key), ...(emp.length ? ['employer_contributions'] : [])];
+  const slipValue = (slip, key) => key.includes('|') ? (slip.amounts[key] || 0) : slip[key];
+  const zero = () => Object.fromEntries(payKeys.map(k => [k, 0]));
+  const grand = zero();
+  const seen = new Set();
+  const groups = [];
+  for (const r of annexure) {
+    const key = (r.designation || '').trim().toLowerCase();
+    let g = groups.find(x => x.key === key);
+    if (!g) groups.push(g = { key, designation: r.designation || 'Consultant', rows: [], amount: 0, sums: zero() });
+    // An employee with more than one assignment on the invoice has one payslip: it is shown on the first row only.
+    const repeat = seen.has(r.employee_id);
+    const slip = !repeat && payroll.slips.get(r.employee_id);
+    seen.add(r.employee_id);
+    if (slip) for (const k of payKeys) { g.sums[k] += slipValue(slip, k); grand[k] += slipValue(slip, k); }
+    g.rows.push({ r, slip, repeat });
+    g.amount += r.amount;
+  }
+  const cols = 4 + payKeys.length;
+  let n = 0;
+%>
+<% function payCells(get) { for (const k of payKeys) { %><td class="num<%= k === 'gross_earnings' || k === 'net_pay' ? ' strong' : '' %>"><%= f.amount(get(k)) %></td><% } } %>
+<div class="doc annexure page-break">
+  <div class="doc-head">
+    <div>
+      <h2>Annexure — Resource details</h2>
+      <div>Invoice <strong><%= inv.number %></strong> · <%= inv.customer_name %></div>
+    </div>
+    <div style="text-align: right">
+      <div>Period: <%= f.monthLabel(inv.month) %></div>
+      <div><%= annexure.length %> assignment<%= annexure.length === 1 ? '' : 's' %></div>
+    </div>
+  </div>
+
+  <div class="doc-scroll">
+  <table>
+    <thead>
+      <% if (hasPay) { %>
+        <tr>
+          <th rowspan="2">#</th><th rowspan="2">Employee</th><th rowspan="2">Role</th>
+          <th colspan="<%= earn.length + 1 %>" class="center">Earnings (₹)</th>
+          <th colspan="<%= ded.length + 1 %>" class="center">Deductions (₹)</th>
+          <th rowspan="2" class="num">Net pay (₹)</th>
+          <% if (emp.length) { %><th colspan="<%= emp.length + 1 %>" class="center">Employer contributions (₹)</th><% } %>
+          <th rowspan="2" class="num">Amount (₹)</th>
+        </tr>
+        <tr>
+          <% for (const c of earn) { %><th class="num"><%= c.name %></th><% } %><th class="num">Gross</th>
+          <% for (const c of ded) { %><th class="num"><%= c.name %></th><% } %><th class="num">Total</th>
+          <% if (emp.length) { for (const c of emp) { %><th class="num"><%= c.name %></th><% } %><th class="num">Total</th><% } %>
+        </tr>
+      <% } else { %>
+        <tr><th>#</th><th>Employee</th><th>Role</th><th class="num">Amount (₹)</th></tr>
+      <% } %>
+    </thead>
+    <tbody>
+      <% for (const g of groups) { %>
+        <tr class="group-head"><td colspan="<%= cols %>"><%= g.designation %></td></tr>
+        <% for (const { r, slip, repeat } of g.rows) { n++; %>
+          <tr>
+            <td><%= n %></td>
+            <td><%= r.employee_name %><br><span class="muted"><%= r.employee_code %></span></td>
+            <td><%= r.role %><% if (r.rate_source === 'Missing') { %><br><span class="badge Draft">No payslip</span><% } %></td>
+            <% if (slip) { payCells(k => slipValue(slip, k)); } else if (hasPay) { %>
+              <td colspan="<%= payKeys.length %>" class="muted"><%= repeat ? 'Payroll shown above' : `No payslip in the ${f.monthLabel(inv.month)} payroll` %></td>
+            <% } %>
+            <td class="num"><%= f.amount(r.amount) %></td>
+          </tr>
+        <% } %>
+        <tr class="group-total">
+          <td colspan="3"><%= g.designation %> — <%= g.rows.length %> resource<%= g.rows.length === 1 ? '' : 's' %></td>
+          <% payCells(k => g.sums[k]); %>
+          <td class="num"><%= f.amount(g.amount) %></td>
+        </tr>
+      <% } %>
+    </tbody>
+    <tfoot>
+      <tr><td colspan="3">Total</td><% payCells(k => grand[k]); %><td class="num"><%= f.amount(annexureTotal) %></td></tr>
+    </tfoot>
+  </table>
+  </div>
+
+  <% if (payroll.statutory) {
+    const st = payroll.statutory;
+    const groupLabel = { EPF: 'Total PF', ESI: 'Total ESI', PT: 'Total PT' };
+  %>
+    <h3 style="margin-top: 20px">Statutory summary — PF, ESI and PT</h3>
+    <div class="doc-scroll">
+    <table class="statutory">
+      <thead><tr><th>Item</th><th class="num">Employees</th><th class="num">Amount (₹)</th></tr></thead>
+      <tbody>
+        <% for (const g of st.groups) {
+          const items = st.items.filter(s => s.group === g.group); %>
+          <% for (const s of items) { %>
+            <tr><td><%= s.label %></td><td class="num"><%= st.employees[s.key] %></td><td class="num"><%= f.amount(st.totals[s.key]) %></td></tr>
+          <% } %>
+          <% if (items.length > 1) { %><tr class="group-total"><td colspan="2"><%= groupLabel[g.group] %></td><td class="num"><%= f.amount(g.total) %></td></tr><% } %>
+        <% } %>
+      </tbody>
+      <tfoot>
+        <tr><td colspan="2">Total statutory (PF + ESI + PT)</td><td class="num"><%= f.amount(st.total) %></td></tr>
+      </tfoot>
+    </table>
+    </div>
+  <% } %>
+
+  <p class="muted small-text" style="margin-top: 12px">
+    <% if (!payroll.run) { %>
+      No payroll has been run for <%= f.monthLabel(inv.month) %>, so payroll components are not shown. Run payroll for the month to add them.
+    <% } else { %>
+      Payroll components are taken from the <%= f.monthLabel(inv.month) %> payroll<%= payroll.run.status === 'Draft' ? ' (draft — figures can change until the payroll is finalized)' : '' %>.
+      PF, ESI and PT are taken from payslip components by name: a PF component is the employer's share when it is named
+      "Employer" (or is an employer contribution), otherwise the employee's share.
+    <% } %>
+  </p>
+  <% if (Math.abs(annexureTotal - inv.subtotal) >= 0.01) { %>
+    <p class="flash info no-print">The invoice lines were edited after this annexure was built, so its total (<%= f.money(annexureTotal) %>) differs from the invoice subtotal (<%= f.money(inv.subtotal) %>). Use Rebuild to regenerate both.</p>
+  <% } %>
+</div>
+<% } %>

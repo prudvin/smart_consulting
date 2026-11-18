@@ -34,11 +34,11 @@
 
 <div class="table-wrap">
   <table>
-    <thead><tr><th>Number</th><th>Customer</th><th>Month</th><th>Invoice date</th><th>Due</th><th class="num">Subtotal</th><th class="num">Tax</th><th class="num">Total</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>Number</th><th>Customer</th><th>Month</th><th>Invoice date</th><th>Due</th><th class="num">Subtotal</th><th class="num">Tax</th><th class="num">Total</th><th>Status</th></tr></thead>
     <tbody>
       <% for (const i of invoices) { %>
-        <tr>
-          <td><a href="/invoices/<%= i.id %>"><strong><%= i.number %></strong></a></td>
+        <tr class="clickable-row" tabindex="0" data-panel-url="/invoices/<%= i.id %>?panel=1" aria-label="Show invoice <%= i.number %>">
+          <td><a href="/invoices/<%= i.id %>" data-panel-open="/invoices/<%= i.id %>?panel=1"><strong><%= i.number %></strong></a></td>
           <td><%= i.customer_name %></td>
           <td><%= f.monthLabel(i.month) %></td>
           <td><%= f.fmtDate(i.invoice_date) %></td>
@@ -47,15 +47,12 @@
           <td class="num"><%= f.money(i.tax_amount) %></td>
           <td class="num"><strong><%= f.money(i.total) %></strong></td>
           <td><span class="badge <%= i.status %>"><%= i.status %></span></td>
-          <td class="actions">
-            <a class="btn small secondary" href="/invoices/<%= i.id %>">View</a>
-          </td>
         </tr>
       <% } %>
-      <% if (!invoices.length) { %><tr><td colspan="10" class="empty">No invoices found.</td></tr><% } %>
+      <% if (!invoices.length) { %><tr><td colspan="9" class="empty">No invoices found.</td></tr><% } %>
     </tbody>
     <% if (invoices.length) { %>
-      <tfoot><tr><td colspan="7">Total (excluding cancelled)</td><td class="num"><%= f.money(total) %></td><td colspan="2"></td></tr></tfoot>
+      <tfoot><tr><td colspan="7">Total (excluding cancelled)</td><td class="num"><%= f.money(total) %></td><td></td></tr></tfoot>
     <% } %>
   </table>
 </div>

@@ -246,6 +246,7 @@ function showInPanel(html) {
   const dialog = drawer();
   const box = dialog.querySelector('[data-drawer-content]');
   box.innerHTML = html;
+  restoreSections(box);
   dialog.dataset.unsaved = '';
   dialog.scrollTop = 0;
   syncResignation();
@@ -286,6 +287,42 @@ document.addEventListener('click', e => {
     loadPanel(load.dataset.panelLoad);
   }
 });
+// Collapsible sections: <details data-remember="key"> keeps its open/closed state in this browser
+// (also when the same section is loaded again in the slide-over panel).
+function restoreSections(root = document) {
+  root.querySelectorAll('details[data-remember]').forEach(d => {
+    let state = null;
+    try { state = localStorage.getItem(`section:${d.dataset.remember}`); } catch {}
+    if (state === 'closed') d.open = false;
+    else if (state === 'open') d.open = true;
+  });
+}
+document.addEventListener('toggle', e => {
+  const d = e.target;
+  if (!(d instanceof HTMLDetailsElement)) return;
+  if (d.dataset.remember) {
+    try { localStorage.setItem(`section:${d.dataset.remember}`, d.open ? 'open' : 'closed'); } catch {}
+  }
+  if (d.open) layoutTables(); // tables in a closed section could not be measured
+}, true);
+document.addEventListener('DOMContentLoaded', () => restoreSections());
+
+// Rows that open a page: <tr data-href="page"> (Ctrl/Cmd-click opens it in a new tab).
+// Links, buttons and fields inside the row keep their own behaviour.
+const pageRow = e => e.target.closest && e.target.closest('tr[data-href]:not([data-panel-row]):not([data-panel-url])');
+document.addEventListener('click', e => {
+  const row = pageRow(e);
+  if (!row || e.target.closest('a, button, input, select, textarea, label, form')) return;
+  if (e.ctrlKey || e.metaKey) window.open(row.dataset.href, '_blank');
+  else window.location.assign(row.dataset.href);
+});
+document.addEventListener('keydown', e => {
+  const row = pageRow(e);
+  if (row && e.target === row && (e.key === 'Enter' || e.key === ' ')) {
+    e.preventDefault();
+    window.location.assign(row.dataset.href);
+  }
+});
 // Rows inside a details view (e.g. a customer's consultants): <tr data-panel-row="url" data-href="page">.
 // In the slide-over panel they load that URL into the panel; elsewhere (a full page) they open data-href.
 function openRowInPlace(row) {
@@ -323,7 +360,7 @@ document.addEventListener('input', e => {
 });
 document.addEventListener('submit', e => {
   const form = e.target.closest('form[data-panel-form]');
-  if (!form) return;
+  if (!form || e.defaultPrevented) return; // e.g. a data-confirm that was cancelled
   e.preventDefault();
   const button = form.querySelector('[type=submit]');
   if (button) { button.disabled = true; button.textContent = 'Saving…'; }

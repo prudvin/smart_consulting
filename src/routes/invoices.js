@@ -15,8 +15,14 @@ const getLines = id => db.prepare('SELECT * FROM invoice_lines WHERE invoice_id 
 const getAnnexure = id => db.prepare('SELECT * FROM invoice_annexure WHERE invoice_id = ? ORDER BY sort, id').all(id);
 const missingDesignations = resources =>
   [...new Set(resources.filter(r => r.rate_source === 'Missing').map(r => r.employee_name))];
-const missingRateMessage = designations =>
-  designations.length ? ` No billing rate on the assignment for: ${designations.join(', ')} — billed at ₹0. Set the rate on their assignment (employee details), then use Rebuild on the draft.` : '';
+// ?panel=1 (or _panel=1 in a form) is the slide-over panel on the Invoices list.
+const fromPanel = req => req.query.panel === '1' || (req.body && req.body._panel === '1');
+// Opened from a customer's panel: from_customer keeps the "Back to customer" link.
+const fromCustomerId = req => Number(req.query.from_customer || (req.body && req.body.from_customer)) || 0;
+const detailsUrl = (req, id) => !fromPanel(req) ? `/invoices/${id}`
+  : `/invoices/${id}?panel=1&saved=1${fromCustomerId(req) ? `&from_customer=${fromCustomerId(req)}` : ''}`;
+const missingRateMessage = names =>
+  names.length ? ` No payslip in the month's payroll for: ${names.join(', ')} — billed at ₹0. Run payroll for the month, then use Rebuild on the draft.` : '';
 
 router.get('/', (req, res) => {
   const month = f.isMonth(req.query.month) ? req.query.month : '';
@@ -85,10 +91,11 @@ router.get('/:id', (req, res, next) => {
   if (!inv) return next();
   const lines = getLines(inv.id);
   const annexure = getAnnexure(inv.id);
-  res.render('invoices/show', {
+  res.render(fromPanel(req) ? 'invoices/panel' : 'invoices/show', {
     title: `Invoice ${inv.number}`, inv, lines, annexure, settings: getSettings(), INVOICE_STATUSES,
     payroll: annexurePayroll(inv.month, annexure.map(r => r.employee_id)),
     annexureTotal: f.round2(annexure.reduce((s, r) => s + r.amount, 0)),
+    fromCustomer: fromCustomerId(req) ? db.prepare('SELECT id, name FROM customers WHERE id = ?').get(fromCustomerId(req)) : null,
   });
 });
 
@@ -124,13 +131,13 @@ router.post('/:id/rebuild', (req, res, next) => {
   if (!inv) return next();
   if (inv.status !== 'Draft') {
     flash(req, 'error', 'Only draft invoices can be rebuilt.');
-    return res.redirect(`/invoices/${inv.id}`);
+    return res.redirect(detailsUrl(req, inv.id));
   }
   const resources = rebuildInvoice(inv.id);
   const missing = missingDesignations(resources);
   flash(req, missing.length ? 'error' : 'success',
-    `Invoice rebuilt from ${resources.length} assignment(s) using current assignment rates and attendance.${missingRateMessage(missing)}`);
-  res.redirect(`/invoices/${inv.id}`);
+    `Invoice rebuilt from ${resources.length} assignment(s) using the salary cost from the month's payroll.${missingRateMessage(missing)}`);
+  res.redirect(detailsUrl(req, inv.id));
 });
 
 router.get('/:id/edit', (req, res, next) => {
@@ -192,7 +199,7 @@ router.post('/:id/status', (req, res, next) => {
     db.prepare('UPDATE invoices SET status = ? WHERE id = ?').run(status, inv.id);
     flash(req, 'success', `Invoice ${inv.number} marked ${status}.`);
   }
-  res.redirect(`/invoices/${inv.id}`);
+  res.redirect(detailsUrl(req, inv.id));
 });
 
 router.post('/:id/delete', (req, res, next) => {

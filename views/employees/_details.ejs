@@ -8,6 +8,8 @@
       <dt>Joined</dt><dd><%= f.fmtDate(e.join_date) %></dd>
       <% if (e.resignation_date) { %><dt>Resignation date</dt><dd><%= f.fmtDate(e.resignation_date) %> <span class="muted">(last working day)</span></dd><% } %>
       <dt>PAN</dt><dd><%= e.pan %></dd>
+      <dt>EPF account no.</dt><dd><%= e.epf_number %></dd>
+      <dt>ESI no.</dt><dd><%= e.esi_number %></dd>
       <dt>Professional tax</dt><dd><%= e.pt_exempt ? 'Exempt' : 'Telangana slab' %></dd>
       <dt>Bank</dt><dd><%= [e.bank_name, e.bank_account, e.ifsc].filter(Boolean).join(' · ') %></dd>
     </dl>
@@ -22,7 +24,8 @@
   </div>
 </div>
 
-<div class="page-head"><h2>Customer assignments</h2><a class="btn small" href="/assignments/new?employee_id=<%= e.id %>" data-panel-load="/assignments/new?employee_id=<%= e.id %>&panel=1">New assignment</a></div>
+<details class="section">
+<summary class="section-head"><h2>Customer assignments <span class="muted">(<%= assignments.length %>)</span></h2><a class="btn small" href="/assignments/new?employee_id=<%= e.id %>" data-panel-load="/assignments/new?employee_id=<%= e.id %>&panel=1">New assignment</a></summary>
 <div class="table-wrap">
   <table>
     <thead><tr><th>Customer</th><th>Designation</th><th>Department</th><th>From</th><th>To</th><th></th></tr></thead>
@@ -41,8 +44,10 @@
     </tbody>
   </table>
 </div>
+</details>
 
-<div class="page-head"><h2>Pay profile history</h2><a class="btn small" href="/employee-pay/new?employee_id=<%= e.id %>">Assign pay profile</a></div>
+<details class="section">
+<summary class="section-head"><h2>Pay profile history <span class="muted">(<%= pay.length %>)</span><% if (!pay.length) { %> <span class="badge Draft" title="This employee will be skipped in payroll">No pay profile</span><% } %></h2><a class="btn small" href="/employee-pay/new?employee_id=<%= e.id %>">Assign pay profile</a></summary>
 <div class="table-wrap">
   <table>
     <thead><tr><th>Effective from</th><th>Pay profile</th><th class="num">Monthly gross</th></tr></thead>
@@ -58,8 +63,10 @@
     </tbody>
   </table>
 </div>
+</details>
 
-<h2>Recent payslips</h2>
+<details class="section">
+<summary class="section-head"><h2>Recent payslips <span class="muted">(<%= payslips.length %>)</span></h2></summary>
 <div class="table-wrap">
   <table>
     <thead><tr><th>Month</th><th class="num">Paid days</th><th class="num">Net pay</th><th></th></tr></thead>
@@ -76,3 +83,4 @@
     </tbody>
   </table>
 </div>
+</details>

@@ -10,7 +10,7 @@ const { flash, isUniqueError, isForeignKeyError, pick, toDb } = require('../midd
 
 const router = express.Router();
 const FIELDS = ['code', 'name', 'email', 'phone', 'join_date', 'resignation_date', 'status',
-  'pan', 'bank_name', 'bank_account', 'ifsc', 'pt_exempt'];
+  'pan', 'bank_name', 'bank_account', 'ifsc', 'epf_number', 'esi_number', 'pt_exempt'];
 
 function readEmployee(body) {
   const e = pick(body, FIELDS);
@@ -20,6 +20,8 @@ function readEmployee(body) {
   if (e.resignation_date) e.status = 'Inactive';
   e.pan = e.pan.toUpperCase();
   e.ifsc = e.ifsc.toUpperCase();
+  e.epf_number = e.epf_number.toUpperCase().replace(/s+/g, '');
+  e.esi_number = e.esi_number.replace(/s+/g, '');
   return e;
 }
 

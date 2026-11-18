@@ -7,7 +7,16 @@ const path = require('node:path');
 process.env.DATA_DIR = fs.mkdtempSync(path.join(os.tmpdir(), 'smart-consulting-test-'));
 const { db } = require('../src/db');
 const { computePayslip, generatePayroll, PayrollError } = require('../src/services/payroll');
-const { buildResources, linesFromResources, agencyLine, generateForMonth } = require('../src/services/invoices');
+const { buildResources, linesFromResources, invoiceTotals, generateForMonth } = require('../src/services/invoices');
+
+// A payslip in the month's payroll run with the given gross and employer contributions (for invoice billing tests).
+function payslip(month, employeeId, gross, employer = 0) {
+  db.prepare("INSERT OR IGNORE INTO payroll_runs (month) VALUES (?)").run(month);
+  const runId = db.prepare('SELECT id FROM payroll_runs WHERE month = ?').get(month).id;
+  db.prepare(`INSERT INTO payslips (run_id, employee_id, employee_code, employee_name, profile_name, monthly_gross, days_in_month,
+      lop_days, paid_days, gross_earnings, total_deductions, net_pay, employer_contributions)
+    VALUES (?, ?, 'X', 'X', 'Test', ?, 30, 0, 30, ?, 0, ?, ?)`).run(runId, employeeId, gross, gross, gross, employer);
+}
 
 const standard = [
   { name: 'Basic', kind: 'Earning', calc: 'PctGross', value: 50 },
@@ -92,68 +101,60 @@ test('payroll run uses attendance loss-of-pay and join date', () => {
   assert.equal(db.prepare('SELECT COUNT(*) AS n FROM payslip_lines WHERE payslip_id NOT IN (SELECT id FROM payslips)').get().n, 0);
 });
 
-test('invoices bill at the rate on each assignment, grouped by designation, with per-employee annexure', () => {
+test('invoices bill the salary cost from payroll, grouped by designation, with per-employee annexure', () => {
   const cust = Number(db.prepare("INSERT INTO customers (name) VALUES ('Acme')").run().lastInsertRowid);
-  const emp = (code, name, designation) =>
-    Number(db.prepare('INSERT INTO employees (code, name, designation) VALUES (?, ?, ?)').run(code, name, designation).lastInsertRowid);
+  const emp = (code, name, designation, joined = '2025-01-01') =>
+    Number(db.prepare('INSERT INTO employees (code, name, designation, join_date) VALUES (?, ?, ?, ?)').run(code, name, designation, joined).lastInsertRowid);
   const asha = emp('I1', 'Asha', 'Consultant');
   const ravi = emp('I2', 'Ravi', 'Consultant');
-  const meera = emp('I3', 'Meera', 'Developer');
+  const meera = emp('I3', 'Meera', 'Developer', '2026-10-11');
   const kiran = emp('I4', 'Kiran', 'Analyst');
-  const omar = emp('I5', 'Omar', 'Designer');
 
-  const asg = db.prepare(`INSERT INTO assignments (employee_id, customer_id, designation, start_date, end_date, billing_type, rate)
-    VALUES (?, ?, ?, ?, ?, ?, ?)`);
-  asg.run(asha, cust, 'Consultant', '2026-10-17', null, 'Monthly', 310000); // half of October
-  asg.run(ravi, cust, 'consultant ', '2026-01-01', null, 'Monthly', 310000); // grouped with "Consultant" (case/space-insensitive)
-  asg.run(meera, cust, 'Developer', '2026-01-01', null, 'Daily', 8000);
-  asg.run(kiran, cust, 'Analyst', '2026-01-01', '2026-10-15', 'Hourly', 1000);
-  asg.run(kiran, cust, 'Analyst', '2026-11-01', null, 'Hourly', 1000); // outside month — ignored
-  asg.run(omar, cust, 'Designer', '2026-01-01', null, 'Daily', 7000);
+  const asg = db.prepare('INSERT INTO assignments (employee_id, customer_id, designation, start_date, end_date) VALUES (?, ?, ?, ?, ?)');
+  asg.run(asha, cust, 'Consultant', '2026-10-17', null); // 15 of the 31 days she was employed in October
+  asg.run(ravi, cust, 'consultant ', '2026-01-01', null); // grouped with "Consultant" (case/space-insensitive)
+  asg.run(meera, cust, 'Developer', '2026-10-16', null); // joined 11 Oct: 16 of her 21 employed days
+  asg.run(kiran, cust, 'Analyst', '2026-01-01', null); // no payslip: billed at 0 and reported
+  asg.run(kiran, cust, 'Analyst', '2026-11-01', null); // outside month — ignored
+  payslip('2026-10', asha, 31000);
+  payslip('2026-10', ravi, 40000, 2000); // employer contributions are part of the salary cost
+  payslip('2026-10', meera, 21000);
   const att = db.prepare('INSERT INTO attendance (employee_id, date, status, hours) VALUES (?, ?, ?, ?)');
-  att.run(meera, '2026-10-01', 'P', 8);
-  att.run(meera, '2026-10-02', 'HD', 4);
-  att.run(meera, '2026-10-03', 'A', 0);
-  att.run(meera, '2026-10-04', 'PL', 0);
-  att.run(kiran, '2026-10-14', 'P', 6);
-  att.run(kiran, '2026-10-20', 'P', 8); // after assignment end — not billable
-  att.run(omar, '2026-10-05', 'P', 8);
+  att.run(meera, '2026-10-16', 'P', 8);
+  att.run(meera, '2026-10-19', 'HD', 4);
+  att.run(meera, '2026-10-20', 'A', 0);
 
   const resources = buildResources(cust, '2026-10');
   const byName = Object.fromEntries(resources.map(r => [r.employee_name, r]));
-  assert.equal(resources.length, 5);
-  assert.equal(byName.Asha.quantity, 0.48); // 15 of 31 days
-  assert.equal(byName.Asha.rate_source, 'Assignment');
-  assert.equal(byName.Ravi.rate, 310000);
-  assert.equal(byName.Meera.quantity, 1.5);
-  assert.deepEqual([byName.Meera.present, byName.Meera.half_day, byName.Meera.absent], [1, 1, 1]);
-  assert.equal(byName.Meera.paid_leave, 2.5); // one leave type: leave + absence + half of the half day
-  assert.equal(byName.Kiran.quantity, 6);
-  assert.equal(byName.Kiran.period_to, '2026-10-15');
-  assert.equal(byName.Omar.rate_source, 'Assignment');
-  assert.equal(byName.Omar.amount, 7000);
+  assert.equal(resources.length, 4);
+  assert.equal(byName.Asha.amount, 15000); // 31,000 × 15/31
+  assert.equal(byName.Asha.rate_source, 'Payroll');
+  assert.equal(byName.Ravi.amount, 42000); // 40,000 gross + 2,000 employer contributions
+  assert.equal(byName.Meera.amount, 16000); // 21,000 × 16/21
+  assert.deepEqual([byName.Meera.present, byName.Meera.half_day, byName.Meera.absent], [1, 1, 1]); // attendance kept for reference
+  assert.equal(byName.Kiran.amount, 0);
+  assert.equal(byName.Kiran.rate_source, 'Missing');
 
   const lines = linesFromResources(resources);
   const consultant = lines.find(l => l.description.startsWith('Consultant'));
-  assert.equal(lines.length, 4);
-  assert.equal(consultant.description, 'Consultant');
+  assert.equal(lines.length, 3);
   assert.equal(consultant.quantity, 2); // number of resources
-  assert.equal(consultant.amount, 1.48 * 310000); // half a month for Asha + a full month for Ravi
+  assert.equal(consultant.amount, 57000);
 
   const first = generateForMonth('2026-10');
   assert.equal(first.created.length, 1);
-  assert.deepEqual(first.missingRates, []);
+  assert.deepEqual(first.missingRates, ['Kiran']);
   const inv = db.prepare('SELECT * FROM invoices WHERE id = ?').get(first.created[0]);
-  assert.equal(inv.subtotal, 1.48 * 310000 + 1.5 * 8000 + 6 * 1000 + 7000);
-  assert.equal(inv.total, Math.round(inv.subtotal * 1.18 * 100) / 100);
+  assert.equal(inv.subtotal, 73000);
+  assert.equal(inv.total, Math.round(inv.subtotal * 1.18 * 100) / 100); // CGST 9% + SGST 9%
   assert.match(inv.number, /^INV-202610-001$/);
   const annexure = db.prepare('SELECT * FROM invoice_annexure WHERE invoice_id = ?').all(inv.id);
-  assert.equal(annexure.length, 5);
+  assert.equal(annexure.length, 4);
   assert.equal(Math.round(annexure.reduce((s, r) => s + r.amount, 0) * 100) / 100, inv.subtotal);
   assert.deepEqual(generateForMonth('2026-10'), { created: [], skipped: 1, missingRates: [] });
 });
 
-test('assignments without a rate are reported (billed at 0)', () => {
+test('employees without a payslip in the month are reported (billed at 0)', () => {
   const cust = Number(db.prepare("INSERT INTO customers (name) VALUES ('Globex')").run().lastInsertRowid);
   const e = Number(db.prepare("INSERT INTO employees (code, name, designation) VALUES ('M1', 'Zed', 'Architect')").run().lastInsertRowid);
   db.prepare("INSERT INTO assignments (employee_id, customer_id, designation, start_date) VALUES (?, ?, 'Architect', '2026-01-01')").run(e, cust);
@@ -183,20 +184,20 @@ test('monthly leave days drive payroll and invoicing, overriding daily records',
   assert.equal(slip.gross_earnings, 28000);
 
   const cust = Number(db.prepare("INSERT INTO customers (name) VALUES ('Initech')").run().lastInsertRowid);
-  const asg = db.prepare('INSERT INTO assignments (employee_id, customer_id, start_date, billing_type, rate) VALUES (?, ?, ?, ?, ?)');
-  asg.run(dev, cust, '2026-08-17', 'Daily', 8000); // 15 of 31 days, 11 weekdays, carrying 15/31 of the 3 leave days
-  asg.run(analyst, cust, '2026-01-01', 'Hourly', 1000);
-  asg.run(quiet, cust, '2026-01-01', 'Daily', 8000);
+  const asg = db.prepare('INSERT INTO assignments (employee_id, customer_id, start_date) VALUES (?, ?, ?)');
+  asg.run(dev, cust, '2026-08-17'); // 15 of 31 days, 11 weekdays, carrying 15/31 of the 3 leave days
+  asg.run(analyst, cust, '2026-01-01');
+  asg.run(quiet, cust, '2026-01-01');
   const byCode = Object.fromEntries(buildResources(cust, '2026-08').map(r => [r.employee_code, r]));
   assert.equal(byCode.MA1.attendance_source, 'Monthly');
   assert.equal(byCode.MA1.paid_leave, 1.45);
   assert.equal(byCode.MA1.days_worked, 9.55);
-  assert.equal(byCode.MA1.amount, 9.55 * 8000);
+  // Billed 15/31 of the salary cost; leave is already reflected in the payslip's gross.
+  assert.equal(byCode.MA1.amount, Math.round(((slip.gross_earnings + slip.employer_contributions) * 15 / 31) * 100) / 100);
   assert.equal(byCode.MA2.days_worked, 20); // 21 weekdays in August 2026 − 1 leave day
   assert.equal(byCode.MA2.hours, 160);
-  assert.equal(byCode.MA2.amount, 160000);
+  assert.equal(byCode.MA2.amount, 0); // no salary set up, so no payslip
   assert.equal(byCode.MA3.attendance_source, 'None');
-  assert.equal(byCode.MA3.quantity, 21);
 });
 
 test('Telangana professional tax follows the monthly salary slabs', () => {
@@ -305,25 +306,25 @@ test('an employee who resigns is paid, billed and counted only up to their last 
 
   // Billing stops at the resignation date: 1–10 June has 8 weekdays, less 1 leave day.
   const cust = Number(db.prepare("INSERT INTO customers (name) VALUES ('Hooli')").run().lastInsertRowid);
-  db.prepare("INSERT INTO assignments (employee_id, customer_id, start_date, billing_type, rate) VALUES (?, ?, '2026-01-01', 'Daily', 8000)").run(leaver, cust);
+  db.prepare("INSERT INTO assignments (employee_id, customer_id, start_date) VALUES (?, ?, '2026-01-01')").run(leaver, cust);
   const [row] = buildResources(cust, '2026-06');
   assert.equal(row.period_to, '2026-06-10');
   assert.equal(row.days_worked, 7);
+  assert.equal(row.amount, 9000); // the whole of June's (prorated) salary cost: assigned for all 10 days employed
   assert.equal(buildResources(cust, '2026-07').length, 0);
 });
 
-test('designation and rate are taken from the assignment: invoice line and payslip', () => {
+test('designation is taken from the assignment: invoice line and payslip', () => {
   const p = Number(db.prepare("INSERT INTO pay_profiles (name) VALUES ('Designation test')").run().lastInsertRowid);
   db.prepare("INSERT INTO pay_components (profile_id, name, kind, calc, value, sort) VALUES (?, 'Basic', 'Earning', 'PctGross', 100, 0)").run(p);
   const emp = Number(db.prepare("INSERT INTO employees (code, name, designation, join_date) VALUES ('DG1', 'Dana', 'Developer', '2025-01-01')").run().lastInsertRowid);
   db.prepare("INSERT INTO employee_pay (employee_id, profile_id, monthly_gross, effective_from) VALUES (?, ?, 20000, '2025-01-01')").run(emp, p);
   const cust = Number(db.prepare("INSERT INTO customers (name) VALUES ('Umbrella')").run().lastInsertRowid);
-  db.prepare(`INSERT INTO assignments (employee_id, customer_id, designation, department, start_date, billing_type, rate)
-    VALUES (?, ?, 'Solution Architect', 'Cloud', '2026-01-01', 'Monthly', 500000)`).run(emp, cust);
+  db.prepare(`INSERT INTO assignments (employee_id, customer_id, designation, department, start_date)
+    VALUES (?, ?, 'Solution Architect', 'Cloud', '2026-01-01')`).run(emp, cust);
 
   const [row] = buildResources(cust, '2026-04');
   assert.equal(row.designation, 'Solution Architect'); // not the employee's old "Developer"
-  assert.equal(row.rate, 500000);
   assert.equal(linesFromResources([row])[0].description, 'Solution Architect');
 
   db.prepare("INSERT INTO attendance_finalized (customer_id, month) VALUES (?, '2026-04')").run(cust);
@@ -363,14 +364,12 @@ test('payroll includes only employees whose customer attendance is finalized', (
   assert.deepEqual(run.pending.find(x => x.id === a).customers, ['Open Co']);
 });
 
-test('agency charges: percentage of manpower or a fixed amount per invoice', () => {
-  const lines = [{ quantity: 2, rate: 30000 }, { quantity: 0.5, rate: 20000 }]; // manpower 70,000
-  const pct = agencyLine({ agency_charge_type: 'Percent', agency_charge_value: 10 }, lines);
-  assert.equal(pct.quantity, 1);
-  assert.equal(pct.rate, 7000);
-  assert.match(pct.description, /10%/);
-  assert.equal(agencyLine({ agency_charge_type: 'Fixed', agency_charge_value: 2500 }, lines).rate, 2500);
-  assert.equal(agencyLine({ agency_charge_type: 'None', agency_charge_value: 10 }, lines), null);
-  assert.equal(agencyLine({ agency_charge_type: 'Percent', agency_charge_value: 0 }, lines), null);
-  assert.equal(agencyLine({ agency_charge_type: 'Fixed', agency_charge_value: 2500 }, []), null); // nothing billed
+test('agency charges (percentage of manpower or a fixed amount) and CGST + SGST on top', () => {
+  const gst = { cgst_rate: 9, sgst_rate: 9 };
+  const pct = invoiceTotals(70000, { agency_charge_type: 'Percent', agency_charge_value: 10, ...gst });
+  assert.deepEqual(pct, { subtotal: 70000, agency: 7000, taxable: 77000, cgst: 6930, sgst: 6930, tax: 13860, total: 90860 });
+  assert.equal(invoiceTotals(70000, { agency_charge_type: 'Fixed', agency_charge_value: 2500, ...gst }).agency, 2500);
+  assert.equal(invoiceTotals(70000, { agency_charge_type: 'None', agency_charge_value: 10, ...gst }).agency, 0);
+  assert.equal(invoiceTotals(70000, { agency_charge_type: 'Percent', agency_charge_value: 0, ...gst }).agency, 0);
+  assert.equal(invoiceTotals(0, { agency_charge_type: 'Fixed', agency_charge_value: 2500, ...gst }).agency, 0); // nothing billed
 });

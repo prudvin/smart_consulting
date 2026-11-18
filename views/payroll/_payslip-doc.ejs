@@ -21,6 +21,8 @@
     </dl>
     <dl class="details">
       <dt>PAN</dt><dd><%= slip.pan %></dd>
+      <% if (slip.epf_number) { %><dt>EPF account no.</dt><dd><%= slip.epf_number %></dd><% } %>
+      <% if (slip.esi_number) { %><dt>ESI no.</dt><dd><%= slip.esi_number %></dd><% } %>
       <dt>Bank</dt><dd><%= slip.bank_name %></dd>
       <dt>Account no.</dt><dd><%= slip.bank_account %></dd>
       <dt>Days in month</dt><dd><%= slip.days_in_month %></dd>

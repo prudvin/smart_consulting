@@ -76,6 +76,8 @@ CREATE TABLE IF NOT EXISTS employees (
   bank_name TEXT,
   bank_account TEXT,
   ifsc TEXT,
+  epf_number TEXT,  -- EPF (PF) account number
+  esi_number TEXT,  -- ESI insurance (IP) number
   pt_exempt INTEGER NOT NULL DEFAULT 0,
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -278,6 +280,8 @@ addColumn('monthly_attendance', 'leave_days', 'REAL NOT NULL DEFAULT 0');
 addColumn('payslips', 'leave_days', 'REAL NOT NULL DEFAULT 0');
 addColumn('employees', 'pt_exempt', 'INTEGER NOT NULL DEFAULT 0');
 addColumn('employees', 'resignation_date', 'TEXT');
+addColumn('employees', 'epf_number', 'TEXT');
+addColumn('employees', 'esi_number', 'TEXT');
 // Agency (service) charges billed to a customer on top of manpower: None, Percent (of the manpower amount) or Fixed (₹ per invoice).
 addColumn('customers', 'agency_charge_type', "TEXT NOT NULL DEFAULT 'None'");
 addColumn('customers', 'agency_charge_value', 'REAL NOT NULL DEFAULT 0');

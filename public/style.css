@@ -19,7 +19,9 @@ body { margin: 0; font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, s
 a { color: var(--primary); }
 
 .app { display: flex; min-height: 100vh; }
-.sidebar { width: 220px; flex-shrink: 0; background: var(--sidebar); color: #e8dcc0; display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; }
+.sidebar { width: 182px; flex-shrink: 0; background: var(--sidebar); color: #e8dcc0; display: flex; flex-direction: column; position: sticky; top: 12px; height: calc(100vh - 24px);
+  /* Floating menu: inset from the window edges, with rounded corners and a soft shadow. */
+  margin: 12px 0 12px 12px; border-radius: 14px; overflow: hidden; box-shadow: 0 8px 28px rgba(31, 26, 16, .22), 0 1px 3px rgba(31, 26, 16, .12); }
 .brand { display: block; padding: 14px 16px; text-decoration: none; font-weight: 700; font-size: 16px; color: var(--gold-light); letter-spacing: .02em; border-bottom: 1px solid rgba(255,255,255,.08); }
 .sidebar nav { flex: 1; padding: 8px 0; overflow-y: auto; }
 .sidebar nav a { display: block; padding: 7px 16px; color: #e8dcc0; text-decoration: none; border-left: 3px solid transparent; }
@@ -35,7 +37,7 @@ a { color: var(--primary); }
   border: 1px solid rgba(255,255,255,.18); border-radius: 8px; background: none; color: var(--gold-light); cursor: pointer; }
 .menu-btn:focus-visible { outline: 2px solid var(--gold-light); outline-offset: 2px; }
 
-.content { flex: 1; min-width: 0; padding: 24px 32px 48px; max-width: 1280px; }
+.content { flex: 1; min-width: 0; padding: 24px 32px 48px; }
 .content.bare { margin: 0 auto; }
 
 h1 { font-size: 22px; margin: 0 0 16px; }
@@ -111,6 +113,22 @@ a.stat:hover { border-color: #d9c38b; }
 dl.details { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; }
 dl.details dt { color: var(--muted); }
 dl.details dd { margin: 0; }
+/* Customer details (page and panel): tighter spacing between the sections. */
+.customer-details .two-col { gap: 12px; margin-bottom: 12px; }
+.customer-details .two-col > .card { margin-bottom: 0; }
+/* Collapsible sections: <details class="section"><summary class="section-head"><h2>…</h2> [buttons]</summary>… */
+details.section > summary.section-head { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  margin: 14px 0 8px; cursor: pointer; list-style: none; border-radius: 6px; }
+details.section > summary.section-head::-webkit-details-marker { display: none; }
+details.section > summary.section-head h2 { margin: 0; display: flex; align-items: center; gap: 6px; }
+details.section > summary.section-head h2 .muted { font-weight: normal; }
+details.section > summary.section-head h2::before { content: ""; width: 7px; height: 7px; margin: 0 4px 0 2px;
+  border: solid currentColor; border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-2px, -2px); transition: transform .15s ease; }
+details.section:not([open]) > summary.section-head h2::before { transform: rotate(-45deg); }
+details.section > summary.section-head:focus-visible { outline: 2px solid var(--gold-light); outline-offset: 2px; }
+@media (prefers-reduced-motion: reduce) { details.section > summary.section-head h2::before { transition: none; } }
+.customer-details .table-wrap { margin-bottom: 10px; }
+.customer-details details.past-assignments { margin-bottom: 10px; }
 
 .login-box { max-width: 380px; margin: 12vh auto 0; padding: 28px; }
 .login-box h1 { margin-bottom: 4px; }
@@ -175,6 +193,7 @@ dialog.drawer::backdrop { background: rgba(31, 26, 16, .45); }
 .drawer-body .doc { padding: 20px; max-width: none; }
 .drawer-body .doc .two-col { grid-template-columns: 1fr 1fr; }
 .drawer-body .doc .employer-table { max-width: none; }
+@media screen { .drawer-body .annexure .doc-scroll { overflow-x: auto; } }
 .payroll-grid tbody tr.clickable-row:hover .sticky, .payroll-grid tbody tr.clickable-row:hover .sticky-2 { background: #fdfaf2; }
 .payroll-grid tbody tr.row-selected .sticky, .payroll-grid tbody tr.row-selected .sticky-2 { background: var(--gold-tint); }
 .drawer-loading { padding: 24px 20px; margin: 0; }
@@ -323,13 +342,13 @@ dialog.doc-popup::backdrop { background: rgba(31, 26, 16, .55); }
   .topbar-brand img { display: block; height: 44px; width: auto; flex-shrink: 0; background: #fff; border-radius: 6px; padding: 2px; }
   .topbar-brand span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .sidebar { position: fixed; top: 0; bottom: 0; left: 0; z-index: 50; width: min(280px, 85vw); height: auto;
-    transform: translateX(-100%); transition: transform .2s ease; box-shadow: none; }
+    margin: 0; border-radius: 0 14px 14px 0; transform: translateX(-100%); transition: transform .2s ease; box-shadow: none; }
   body.nav-open .sidebar { transform: none; box-shadow: 4px 0 24px rgba(0,0,0,.35); }
   .nav-backdrop { position: fixed; inset: 0; z-index: 40; background: rgba(31, 26, 16, .5); }
   body.nav-open .nav-backdrop { display: block; }
   body.nav-open { overflow: hidden; }
   .sidebar nav a { padding: 11px 18px; }
-  .brand img { max-width: 180px; }
+  .brand img { max-width: 144px; }
 
   .content { padding: 14px 14px 40px; }
   h1 { font-size: 19px; }

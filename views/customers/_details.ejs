@@ -1,3 +1,4 @@
+<div class="customer-details">
 <div class="two-col">
   <div class="card">
     <h2>Contact</h2>
@@ -19,7 +20,8 @@
   </div>
 </div>
 
-<h2>Consultants assigned</h2>
+<details class="section">
+<summary class="section-head"><h2>Consultants assigned <span class="muted">(<%= current.length %>)</span></h2></summary>
 <div class="table-wrap">
   <table>
     <thead><tr><th>Employee</th><th>Designation</th><th>Department</th><th>From</th><th>To</th></tr></thead>
@@ -57,22 +59,25 @@
     </div>
   </details>
 <% } %>
+</details>
 
-<div class="page-head"><h2>Recent invoices</h2><a class="btn small secondary" href="/invoices?customer_id=<%= c.id %>">All invoices</a></div>
+<details class="section">
+<summary class="section-head"><h2>Recent invoices <span class="muted">(<%= invoices.length %>)</span></h2><a class="btn small secondary" href="/invoices?customer_id=<%= c.id %>">All invoices</a></summary>
 <div class="table-wrap">
   <table>
-    <thead><tr><th>Number</th><th>Month</th><th class="num">Total</th><th>Status</th><th></th></tr></thead>
+    <thead><tr><th>Number</th><th>Month</th><th class="num">Total</th><th>Status</th></tr></thead>
     <tbody>
       <% for (const i of invoices) { %>
-        <tr>
-          <td><%= i.number %></td>
+        <tr class="clickable-row" tabindex="0" data-panel-row="/invoices/<%= i.id %>?panel=1&from_customer=<%= c.id %>" data-href="/invoices/<%= i.id %>" aria-label="Show invoice <%= i.number %>">
+          <td><a href="/invoices/<%= i.id %>" data-panel-open="/invoices/<%= i.id %>?panel=1&from_customer=<%= c.id %>"><strong><%= i.number %></strong></a></td>
           <td><%= f.monthLabel(i.month) %></td>
           <td class="num"><%= f.money(i.total) %></td>
           <td><span class="badge <%= i.status %>"><%= i.status %></span></td>
-          <td class="actions"><a class="btn small secondary" href="/invoices/<%= i.id %>">View</a></td>
         </tr>
       <% } %>
-      <% if (!invoices.length) { %><tr><td colspan="5" class="empty">No invoices yet.</td></tr><% } %>
+      <% if (!invoices.length) { %><tr><td colspan="4" class="empty">No invoices yet.</td></tr><% } %>
     </tbody>
   </table>
+</div>
+</details>
 </div>

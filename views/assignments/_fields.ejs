@@ -35,13 +35,6 @@
       <div><label for="<%= px %>role">Role on project</label><input id="<%= px %>role" name="role" value="<%= a.role || '' %>" placeholder="e.g. SAP FICO Consultant"></div>
       <div><label for="<%= px %>start_date">Start date</label><input id="<%= px %>start_date" type="date" name="start_date" value="<%= a.start_date || '' %>" required></div>
       <div><label for="<%= px %>end_date">End date <span class="hint">(blank = ongoing)</span></label><input id="<%= px %>end_date" type="date" name="end_date" value="<%= a.end_date || '' %>"></div>
-      <div>
-        <label for="<%= px %>billing_type">Billing</label>
-        <select id="<%= px %>billing_type" name="billing_type" required>
-          <% for (const [type, unit] of Object.entries(BILLING_TYPES)) { %><option value="<%= type %>" <%= (a.billing_type || 'Monthly') === type ? 'selected' : '' %>>Per <%= unit %></option><% } %>
-        </select>
-      </div>
-      <div><label for="<%= px %>rate">Rate (₹)</label><input id="<%= px %>rate" type="number" step="0.01" min="0" name="rate" value="<%= a.rate ?? '' %>" required></div>
       <% if (isNew) { %>
         <div class="full">
           <label class="check"><input type="checkbox" name="close_previous" value="1" <%= a.close_previous === false ? '' : 'checked' %>> End the employee's current assignment(s) the day before this one starts</label>
@@ -54,5 +47,5 @@
       <% } %>
       <div class="full"><label for="<%= px %>notes">Notes</label><textarea id="<%= px %>notes" name="notes"><%= a.notes || '' %></textarea></div>
     </div>
-    <p class="hint">The customer is invoiced at this rate: <strong>per month</strong> is prorated for part months,
-      <strong>per day</strong> bills days worked, and <strong>per hour</strong> bills hours worked (8 per day worked).</p>
+    <p class="hint">The customer is invoiced the employee's salary cost from the month's payroll (gross earnings plus
+      employer contributions), for the days of the month this assignment covers.</p>

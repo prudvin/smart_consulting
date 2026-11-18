@@ -36,7 +36,7 @@ Data is stored in `data/app.db`. Back up that file to back up everything.
 **Users.** Administrators can add, edit, disable and remove users and reset their passwords. Users have one of two roles:
 *admin*, with full access including Users and Settings, or *staff*, with everything else. You can't remove the last active admin.
 
-**Employees.** Contact details, join date, resignation date, PAN and bank details. Designation and department are recorded on each customer assignment; lists, payslips and the details panel show the employee's current ones (from their latest started assignment). Each
+**Employees.** Contact details, join date, resignation date, PAN, EPF account number, ESI number and bank details (EPF and ESI numbers are printed on payslips when set). Designation and department are recorded on each customer assignment; lists, payslips and the details panel show the employee's current ones (from their latest started assignment). Each
 employee's page shows their assignments, pay history, current-month attendance and recent payslips. If an employee
 has payslips, mark them Inactive instead of deleting them.
 
@@ -49,7 +49,7 @@ status is locked while the date is set. They stay in leave entry, payroll and in
 month is prorated, e.g. paid for 1–20 November, and from the next month they're left out. Their assignments stop
 counting as current after that day. Clear the date to make them active again.
 
-**Customers.** Billing address, GSTIN and contact person. On the Customers list, click a row to open the customer's details in a slide-over panel: contact and billing details, invoiced and outstanding totals, consultants assigned (upcoming ones marked), past assignments and recent invoices. **Edit** in the panel edits the customer in place.
+**Customers.** Billing address, GSTIN and contact person. On the Customers list, click a row to open the customer's details in a slide-over panel: contact and billing details, invoiced and outstanding totals, consultants assigned (upcoming ones marked), past assignments and recent invoices. Click a recent invoice to open it in the same panel, with **← Back to** the customer. **Edit** in the panel edits the customer in place.
 Each customer has **Agency charges**:
 - **None**: no agency line.
 - **Percentage of manpower**: a percentage of the invoice's manpower lines, up to 100%.
@@ -60,7 +60,7 @@ Generated, prefilled or rebuilt invoices add it as a separate "Agency charges" l
 **Assignments.** Links an employee to a customer for a date range, with the **designation** and department they work as for that customer. A new assignment is prefilled with the employee's current designation and department. Adding an assignment ends the employee's current assignment(s) the day before the new one starts; untick **End the employee's current assignment(s)** to keep them running, e.g. for someone shared between customers. There is no separate assignments page: assignments are managed from each employee's details. In the panel on the Employees list, **New assignment** and **Edit** open the assignment form in the same panel; on the full employee page they open the assignment form page, which returns to the employee after saving. On the Customers page, the consultant count opens the Employees list filtered to that customer. The dashboard lists employees "on bench",
 meaning they have no current assignment.
 
-**Billing.** Each assignment has its own billing basis and rate, billed per month (prorated for part months), per day (days worked) or per hour (hours worked). A new assignment starts with the employee's latest billing basis and rate. Assignments without a rate are billed at ₹0 and named in a warning when invoices are generated.
+**Billing.** There is no billing rate. Each assignment is billed the employee's **salary cost** for the month from that month's payroll: gross earnings plus employer contributions on their payslip. If the assignment covers only part of the days the employee was employed that month (they moved between customers, or spent days on the bench), it is billed that share of the cost by calendar days. Leave is already reflected in the payslip. Employees without a payslip are billed at ₹0 and named in a warning when invoices are generated. Agency charges and GST are added on top.
 
 **Attendance.** Attendance is entered per month, and there is a single leave type, **Leave**, which is unpaid.
 There are two tabs, Monthly entry and Leave register:
@@ -81,7 +81,6 @@ There are two tabs, Monthly entry and Leave register:
 
 With monthly leave days:
 - Salary is paid for **days employed − leave days**.
-- Customers on daily rates are billed **working days − leave days**, and on hourly rates 8 hours per day worked.
 - If an assignment covers only part of the month, it carries a proportional share of the month's leave.
 - Public holidays are not deducted from working days.
 
@@ -152,11 +151,11 @@ On the run page, click a row to open that employee's payslip in the slide-over p
 with column totals. "—" marks a component that isn't in that employee's pay profile. Each run has printable payslips
 and a CSV export with the same component columns, plus bank details for salary upload.
 
-**Invoices.** **Generate invoices** creates one draft per active customer that had assignments in the month.
+**Invoices.** On the Invoices list, click a row to open the invoice (with its annexure) in the slide-over panel, with **Print / Save as PDF** (prints just the invoice), **Edit**, **Rebuild**, **Update status**, **Annexure CSV** and **Open full page**; the list refreshes when the panel closes after a change. **Generate invoices** creates one draft per active customer that had assignments in the month.
 Customers already invoiced for that month are skipped. There is one invoice line per designation: the quantity is the
-number of resources and the amount is what they are billed for the month (monthly, daily or hourly, prorated as
-applicable), e.g. "Senior Consultant · Qty 2 · ₹7,00,000". Lines have no rate column. Designations without a rate on
-the assignment are billed at ₹0 and flagged.
+number of resources and the amount is what they are billed for the month, e.g. "Senior Consultant · Qty 2 · ₹84,000".
+Lines have no rate column. Employees without a payslip in the month's payroll are billed at ₹0 and flagged: run payroll
+for the month first, or run it afterwards and **Rebuild** the drafts.
 
 Each generated invoice carries an **annexure**, printed as a separate page after the invoice and also available as a CSV.
 For each employee it shows the designation, project role, the payroll components from their payslip for the invoice month
@@ -171,7 +170,7 @@ they can change until that payroll is finalized.
 
 You can also create an invoice manually. Drafts are editable: line items, dates, CGST and SGST rates, and notes.
 GST is charged as two components, CGST and SGST (9% each by default, set under Settings), on the manpower lines plus agency charges. **Rebuild**
-regenerates a draft's lines and annexure from current assignments, rates and attendance. The status moves through
+regenerates a draft's lines and annexure from current assignments and the month's payroll. The status moves through
 Draft → Sent → Paid (or Cancelled). Invoices print or save as PDF from the browser. Numbers follow
 `<prefix><YYYYMM>-<seq>`, e.g. `INV-202610-001`.
 

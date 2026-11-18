@@ -1,5 +1,4 @@
 const { db, tx, getSetting } = require('../db');
-const { BILLING_TYPES } = require('../constants');
 const { attendanceFor } = require('./attendance');
 const f = require('../format');
 
@@ -15,19 +14,18 @@ function nextInvoiceNumber(month) {
   return prefix + String(max + 1).padStart(3, '0');
 }
 
-// The customer is billed at the billing basis and rate on the assignment; without them it is billed at 0 and flagged.
-function resolveRate(a) {
-  if (a.billing_type && a.rate != null) return { billing_type: a.billing_type, rate: a.rate, rate_source: 'Assignment' };
-  return { billing_type: 'Monthly', rate: 0, rate_source: 'Missing' };
-}
+// The employee's salary cost for the month: gross earnings plus employer contributions on their payslip in the
+// month's payroll run (null when there is no payslip).
+const salaryCost = db.prepare(`SELECT p.gross_earnings + p.employer_contributions AS cost
+  FROM payslips p JOIN payroll_runs r ON r.id = p.run_id WHERE r.month = ? AND p.employee_id = ?`);
 
-// One row per assignment overlapping the month: attendance in the assigned period and the billable quantity.
-// Monthly: prorated by calendar days assigned. Daily: days worked. Hourly: hours worked.
-// Attendance comes from the employee's monthly entry if there is one, otherwise from daily records.
+// One row per assignment overlapping the month, billed at the employee's salary cost for the month (from payroll).
+// When the assignment covers only part of the days the employee was employed in the month (e.g. they moved between
+// customers, or were on the bench), it is billed that share of the cost by calendar days. Without a payslip it is
+// billed at 0 and flagged (rate_source 'Missing'). Attendance in the assigned period is recorded for reference.
 function buildResources(customerId, month) {
   const start = f.monthStart(month);
   const end = f.monthEnd(month);
-  const dim = f.daysInMonth(month);
   const assignments = db.prepare(`
     SELECT a.*, e.code AS employee_code, e.name AS employee_name, e.designation AS employee_designation,
       e.join_date, e.resignation_date, ${BILLABLE_END} AS billable_end
@@ -42,13 +40,12 @@ function buildResources(customerId, month) {
     const to = a.billable_end < end ? a.billable_end : end;
     const att = attendanceFor({ id: a.employee_id, join_date: a.join_date, resignation_date: a.resignation_date }, month, from, to);
     const days = status => (att.counts ? att.counts[status] : 0);
-    const { billing_type, rate, rate_source } = resolveRate(a);
 
-    const quantity = f.round2(
-      billing_type === 'Monthly' ? f.daysBetween(from, to) / dim
-        : billing_type === 'Daily' ? att.worked
-          : att.hours
-    );
+    const slip = salaryCost.get(month, a.employee_id);
+    const employedFrom = a.join_date && a.join_date > start ? a.join_date : start;
+    const employedTo = a.resignation_date && a.resignation_date < end ? a.resignation_date : end;
+    const share = Math.min(1, f.daysBetween(from, to) / Math.max(1, f.daysBetween(employedFrom, employedTo)));
+    const rate = slip ? f.round2(slip.cost) : 0;
     return {
       employee_id: a.employee_id,
       employee_code: a.employee_code,
@@ -68,12 +65,13 @@ function buildResources(customerId, month) {
       days_worked: f.round2(att.worked),
       lop_days: f.round2(att.lop),
       attendance_source: att.source,
-      billing_type,
-      quantity,
-      unit: BILLING_TYPES[billing_type],
+      // Kept in the annexure for reference: the share of the month billed and the full month's salary cost.
+      billing_type: 'Monthly',
+      quantity: f.round2(share),
+      unit: 'month',
       rate,
-      rate_source,
-      amount: f.round2(quantity * rate),
+      rate_source: slip ? 'Payroll' : 'Missing',
+      amount: f.round2(rate * share),
     };
   });
 }
@@ -171,7 +169,7 @@ function createInvoice(customerId, month, { fromAssignments }) {
 
 // Creates a draft invoice for every active customer with assignments in the month,
 // skipping customers that already have a (non-cancelled) invoice for it.
-// Returns the consultants whose assignment has no rate (billed at 0) so the user can set one.
+// Returns the consultants with no payslip in the month's payroll (billed at 0) so the user can run payroll and rebuild.
 function generateForMonth(month) {
   const start = f.monthStart(month);
   const end = f.monthEnd(month);

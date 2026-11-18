@@ -55,7 +55,7 @@ router.post('/generate', (req, res) => {
 
 router.get('/payslips/:id', (req, res, next) => {
   const slip = db.prepare(`
-    SELECT s.*, r.month, r.status AS run_status, e.pan, e.bank_name, e.bank_account, e.ifsc, e.join_date,
+    SELECT s.*, r.month, r.status AS run_status, e.pan, e.bank_name, e.bank_account, e.ifsc, e.epf_number, e.esi_number, e.join_date,
       ${currentAssignmentValue('department', 'e', "date(r.month || '-01', '+1 month', '-1 day')")} AS department
     FROM payslips s JOIN payroll_runs r ON r.id = s.run_id JOIN employees e ON e.id = s.employee_id WHERE s.id = ?`).get(Number(req.params.id));
   if (!slip) return next();
@@ -112,16 +112,16 @@ router.get('/:id/export.csv', (req, res, next) => {
   const run = getRun(req.params.id);
   if (!run) return next();
   const payslips = db.prepare(`
-    SELECT s.*, e.pan, e.bank_name, e.bank_account, e.ifsc, ${MONTH_CUSTOMERS} AS customers
+    SELECT s.*, e.pan, e.bank_name, e.bank_account, e.ifsc, e.epf_number, e.esi_number, ${MONTH_CUSTOMERS} AS customers
     FROM payslips s JOIN employees e ON e.id = s.employee_id JOIN payroll_runs r ON r.id = s.run_id
     WHERE s.run_id = ? ORDER BY s.employee_code`).all(run.id);
   const { earnings, deductions, employer, bySlip } = componentBreakdown(run.id);
   const amountsOf = (s, kind) => (bySlip.get(s.id) || { Earning: {}, Deduction: {}, Employer: {} })[kind];
 
-  const header = ['Code', 'Name', 'Customer', 'Designation', 'PAN', 'Bank', 'Account', 'IFSC', 'Monthly gross', 'Days', 'Leave days', 'Paid days',
+  const header = ['Code', 'Name', 'Customer', 'Designation', 'PAN', 'Bank', 'Account', 'IFSC', 'EPF account no.', 'ESI no.', 'Monthly gross', 'Days', 'Leave days', 'Paid days',
     ...earnings, 'Gross earnings', ...deductions.map(n => `(-) ${n}`), 'Total deductions', 'Net pay',
     ...employer.map(n => `(Employer) ${n}`), 'Employer contributions', 'Cost to company'];
-  const rows = payslips.map(s => [s.employee_code, s.employee_name, s.customers, s.designation, s.pan, s.bank_name, s.bank_account, s.ifsc,
+  const rows = payslips.map(s => [s.employee_code, s.employee_name, s.customers, s.designation, s.pan, s.bank_name, s.bank_account, s.ifsc, s.epf_number, s.esi_number,
     s.monthly_gross, s.days_in_month, s.leave_days, s.paid_days,
     ...earnings.map(n => amountsOf(s, 'Earning')[n] ?? ''), s.gross_earnings,
     ...deductions.map(n => amountsOf(s, 'Deduction')[n] ?? ''), s.total_deductions, s.net_pay,

@@ -25,6 +25,8 @@
       <div><label for="<%= px %>bank_name">Bank name</label><input id="<%= px %>bank_name" name="bank_name" value="<%= e.bank_name || '' %>"></div>
       <div><label for="<%= px %>bank_account">Bank account number</label><input id="<%= px %>bank_account" name="bank_account" value="<%= e.bank_account || '' %>"></div>
       <div><label for="<%= px %>ifsc">IFSC</label><input id="<%= px %>ifsc" name="ifsc" value="<%= e.ifsc || '' %>" maxlength="11"></div>
+      <div><label for="<%= px %>epf_number">EPF account number</label><input id="<%= px %>epf_number" name="epf_number" value="<%= e.epf_number || '' %>" maxlength="30" placeholder="e.g. TSHYD00123450000012345"></div>
+      <div><label for="<%= px %>esi_number">ESI number</label><input id="<%= px %>esi_number" name="esi_number" value="<%= e.esi_number || '' %>" maxlength="20" inputmode="numeric" placeholder="10-digit IP number"></div>
       <div class="full">
         <label class="check"><input type="checkbox" name="pt_exempt" value="1" <%= e.pt_exempt ? 'checked' : '' %>> Exempt from professional tax</label>
         <span class="hint">e.g. persons with 40% or more disability, per the Telangana professional tax schedule.</span>

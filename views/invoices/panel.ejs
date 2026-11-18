@@ -1,0 +1,42 @@
+<div class="drawer-head">
+  <div class="drawer-title">
+    <h2 id="drawer-title">Invoice <%= inv.number %> <span class="badge <%= inv.status %>"><%= inv.status %></span></h2>
+    <div class="muted small-text"><%= inv.customer_name %> · <%= f.monthLabel(inv.month) %> · <%= f.money(inv.total) %></div>
+  </div>
+  <button type="button" class="icon-btn" data-close-dialog aria-label="Close">
+    <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M18.3 5.71 12 12.01l-6.3-6.3-1.41 1.41 6.3 6.3-6.3 6.3 1.41 1.41 6.3-6.3 6.3 6.3 1.41-1.41-6.3-6.3 6.3-6.3z"/></svg>
+  </button>
+</div>
+<% if (locals.fromCustomer) { %>
+  <div class="drawer-back"><a href="/customers/<%= fromCustomer.id %>" data-panel-load="/customers/<%= fromCustomer.id %>?panel=1">← Back to <%= fromCustomer.name %></a></div>
+<% } %>
+<div class="drawer-actions">
+  <button type="button" class="btn" data-print-panel>Print / Save as PDF</button>
+  <% if (inv.status === 'Draft') { %>
+    <a class="btn secondary" href="/invoices/<%= inv.id %>/edit">Edit</a>
+    <form method="post" action="/invoices/<%= inv.id %>/rebuild" class="inline" data-panel-form data-confirm="Rebuild lines and annexure from current assignments and the month's payroll? Manual line edits will be replaced.">
+      <%- include('../partials/csrf') %>
+      <input type="hidden" name="_panel" value="1">
+      <% if (locals.fromCustomer) { %><input type="hidden" name="from_customer" value="<%= fromCustomer.id %>"><% } %>
+      <button class="btn secondary" type="submit">Rebuild</button>
+    </form>
+  <% } %>
+  <% if (annexure.length) { %><a class="btn secondary" href="/invoices/<%= inv.id %>/annexure.csv">Annexure CSV</a><% } %>
+  <form method="post" action="/invoices/<%= inv.id %>/status" class="inline" data-panel-form>
+    <%- include('../partials/csrf') %>
+    <input type="hidden" name="_panel" value="1">
+    <% if (locals.fromCustomer) { %><input type="hidden" name="from_customer" value="<%= fromCustomer.id %>"><% } %>
+    <select name="status" style="width: auto" aria-label="Status">
+      <% for (const s of INVOICE_STATUSES) { %><option <%= s === inv.status ? 'selected' : '' %>><%= s %></option><% } %>
+    </select>
+    <button class="btn secondary" type="submit">Update status</button>
+  </form>
+  <a class="btn secondary" href="/invoices/<%= inv.id %>">Open full page</a>
+  <% if (['Draft', 'Cancelled'].includes(inv.status)) { %>
+    <%- include('../partials/delete-button', { action: `/invoices/${inv.id}/delete`, confirmText: `Delete invoice ${inv.number}?` }) %>
+  <% } %>
+</div>
+<div class="drawer-body">
+  <% if (locals.flash) { %><div class="flash <%= flash.type %>"><%= flash.msg %></div><% } %>
+  <%- include('_doc') %>
+</div>
