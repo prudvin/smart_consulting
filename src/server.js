@@ -1,3 +1,11 @@
+// The database uses Node's built-in SQLite (node:sqlite), available without flags from Node.js 22.13.
+// Fail with a clear message (shown in the host's error log) instead of an obscure "module not found".
+const [major, minor] = process.versions.node.split('.').map(Number);
+if (major < 22 || (major === 22 && minor < 13)) {
+  console.error(`Smart Consulting needs Node.js 22.13 or later; this server runs Node.js ${process.versions.node}. Choose a newer Node.js version in your hosting control panel.`);
+  process.exit(1);
+}
+
 const path = require('node:path');
 const express = require('express');
 const session = require('express-session');
@@ -53,7 +61,8 @@ app.use((err, req, res, next) => {
   res.status(500).render('error', { title: 'Something went wrong', message: err.message });
 });
 
-const port = Number(process.env.PORT) || 3000;
+// PORT is usually a number; on Windows hosting (IIS with iisnode, e.g. Plesk for Windows) it is a named pipe, used as is.
+const port = !process.env.PORT ? 3000 : /^\d+$/.test(process.env.PORT) ? Number(process.env.PORT) : process.env.PORT;
 // Express 5 calls the listen callback with an error if the server fails to start.
 app.listen(port, err => {
   if (!err) return console.log(`Smart Consulting running at http://localhost:${port}`);
